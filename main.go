@@ -32,7 +32,6 @@ import (
 
 const (
 	closeThresh      float64 = 0.85
-	robotVelocity    float64 = 1.0 // [m/sec]
 	robotRotVelocity float64 = 1.0 // [rad/sec]
 
 	mapFile  string = "map/willow_garage_v_edited4.pgm"
@@ -42,9 +41,10 @@ const (
 var (
 	mode Mode = ASTAR3DHEXA
 
-	robotsize  = flag.Float64("robotSize", 0.33, "robot radius")
-	resolution = flag.Float64("reso", 0.3, "path planning resolution")
-	vizroute   = flag.Bool("visualize", true, "whether visualize route")
+	robotsize  = flag.Float64("robotSize", 0.38, "robot radius")
+	robotVel   = flag.Float64("robotVel", 1.0, "robot velocity")
+	resolution = flag.Float64("reso", 0.28, "path planning resolution")
+	vizroute   = flag.Bool("visualize", false, "whether visualize route")
 	mqttsrv    = flag.String("mqtt", "localhost", "MQTT Broker address")
 
 	mapMetaUpdate               = false
@@ -59,29 +59,33 @@ var (
 
 	clt mqtt.Client
 
-	msgCh chan mqtt.Message
-	vizCh chan vizOpt
+	msgCh   chan mqtt.Message
+	vizCh   chan vizOpt
+	routeCh chan *cav.DestinationRequest
 
 	// for vizualization
 	plot2d *glot.Plot
 	plot3d *glot.Plot
 
-	timeStep    int //計算に使う1stepの秒数
-	reso        float64
-	robotRadius float64
+	timeStep      float64 //計算に使う1stepの秒数
+	reso          float64
+	robotRadius   float64
+	robotVelocity float64
 )
 
 func init() {
 	msgCh = make(chan mqtt.Message)
 	vizCh = make(chan vizOpt)
+	routeCh = make(chan *cav.DestinationRequest)
 
 	robotList = make(map[int]*robot.RobotStatus)
 
 	flag.Parse()
 	reso = *resolution
 	robotRadius = *robotsize
+	robotVelocity = *robotVel
 	//timeStep = reso/robotVelocity + 2*math.Pi/3/robotRotVelocity // L/v + 2pi/3w  120度回転したときの一番かかる時間
-	timeStep = 3 * int(math.Ceil(reso/robotVelocity)) //切り上げ整数
+	timeStep = math.Sqrt(2) * reso / robotVelocity //切り上げ整数
 }
 
 type vizOpt struct {
@@ -102,6 +106,13 @@ func (m Mode) String() string {
 	return s[m]
 }
 
+func handleRouting() {
+	for {
+		req := <-routeCh
+		routing(req)
+	}
+}
+
 func routing(rcd *cav.DestinationRequest) {
 	var jsonPayload []byte
 	if mode == ASTAR3DHEXA {
@@ -118,7 +129,7 @@ func routing(rcd *cav.DestinationRequest) {
 
 		// update robot map
 		now := time.Now()
-		updateStep := int(math.Round(now.Sub(timeMapMin).Seconds() / float64(timeStep)))
+		updateStep := int(math.Round(now.Sub(timeMapMin).Seconds() / timeStep))
 		gridMap.UpdateStep(timeRobotMap, updateStep)
 		log.Printf("update robot cost map timestep:%d", updateStep)
 		timeMapMin = now
@@ -136,20 +147,20 @@ func routing(rcd *cav.DestinationRequest) {
 			}
 		}
 
-		routei, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, robotRotVelocity, float64(timeStep), grid.TRWCopy(timeRobotMap), others)
+		routei, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
 		if err != nil {
 			log.Print(err)
 		} else {
-			route := gridMap.Route2PosHexa(float64(time.Now().Unix()), float64(timeStep), routei)
+			route := gridMap.Route2PosHexa(float64(time.Now().Unix()), timeStep, routei)
 			jsonPayload, err = msg.MakePathMsg(route)
 			if err != nil {
 				log.Print(err)
 			}
 			sendPath(jsonPayload, int(rcd.RobotId))
 			now := time.Now()
-			updateStep := int(math.Round(now.Sub(timeMapMin).Seconds() / float64(timeStep)))
+			updateStep := int(math.Round(now.Sub(timeMapMin).Seconds() / timeStep))
 			gridMap.UpdateStep(timeRobotMap, updateStep)
-			gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, robotRadius, timeStep)
+			gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, robotRadius)
 			log.Printf("update robot cost map timestep:%d", updateStep)
 			timeMapMin = now
 
@@ -232,7 +243,8 @@ func routeCallback(client *sxutil.SXServiceClient, sp *api.Supply) {
 		log.Print(err)
 	}
 	log.Printf("receive dest request robot%d", rcd.RobotId)
-	go routing(rcd)
+	routeCh <- rcd
+	//go routing(rcd)
 
 }
 
@@ -387,22 +399,6 @@ func SetupStaticMap() {
 	}
 }
 
-func testPath() {
-	isx, isy := gridMap.Pos2Ind(0, 0)
-	igx, igy := gridMap.Pos2Ind(30, 5)
-
-	routei, err := gridMap.Plan(isx, isy, igx, igy, timeRobotMap)
-	if err != nil {
-		log.Print(err)
-	} else {
-		route := gridMap.Route2Pos(0, routei)
-		plot2d.AddPointGroup("route", "points", grid.Convert32DPoint(route))
-		plot2d.SavePlot("route/test_route2D.png")
-		plot3d.AddPointGroup("route", "points", grid.Convert3DPoint(route))
-		plot3d.SavePlot("route/test_route3D.png")
-	}
-}
-
 func main() {
 	log.Printf("start geo-routing server mode:%s, timestep:%d, resolution:%f, robotRadius:%f, mapfile:%s", mode.String(), timeStep, reso, *robotsize, mapFile)
 	go sxutil.HandleSigInt()
@@ -428,11 +424,10 @@ func main() {
 	// load static map data
 	SetupStaticMap()
 
-	// testPath()
-
 	//start main function
 	log.Print("start subscribing")
 
+	go handleRouting()
 	go subsclibeRouteSupply(synerex.RouteClient)
 	go subsclibeMqttSupply(synerex.MqttClient)
 

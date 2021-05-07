@@ -11,7 +11,7 @@ const (
 	CloseThreth   int8 = 90     //これより大きいと通れない  [0,100]
 	MaxTimeLength int  = 100000 //これ以上のtを計算しない
 
-	MaxSearchTimeStep int = 1000 //これ以上先の時間を計算しない
+	MaxSearchTimeStep int = 1000 //これ以上の幅で先の時間を計算しない
 
 	MaxStopCount int = 10 //これ以上ストップしない
 )

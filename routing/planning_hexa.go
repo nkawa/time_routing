@@ -218,7 +218,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		closeSet[nodeIndex(current)] = current
 		closeSetT[nodeIndexT(current)] = current
 
-		around := current.AroundHexa(&m, minTime, v, w, timeStep, TRW, otherRobot)
+		around := current.AroundHexaMore(&m, minTime, v, w, timeStep, TRW, otherRobot)
 		for _, an := range around {
 			indT := nodeIndexT(an)
 			ind := nodeIndex(an)
@@ -285,6 +285,84 @@ func (n Node) AroundHexa(g *GridMap, minTime int, v, w, timeStep float64, TRW Ti
 		{0.0, -1.0, 0.0, cost1},
 		{0.0, 0.0, -1.0, cost1},
 		{0.0, 1.0, -1.0, cost1},
+	}
+	var around []*Node
+	for i, m := range motion {
+		aX := n.XId + int(m[1])
+		aY := n.YId + int(m[2])
+		aT := n.T + int(m[0]) + 1
+
+		//時間コストマップ外の時間は外す
+		if aT >= g.MaxT {
+			continue
+		}
+
+		//map外のノードは外す
+		if aX < 0 || aX >= g.Width {
+			continue
+		}
+		if aY < 0 || aY >= g.Height {
+			continue
+		}
+
+		//元から障害物で通れないところは外す
+		if g.ObjectMap[newIndex(aX, aY)] {
+			continue
+		}
+
+		//他のロボットがいる場所は外す
+		if val, ok := otherRobot[newIndex(aX, aY)]; ok {
+			if val {
+				continue
+			}
+		}
+
+		//移動中のロボットがいて通れないところは外す
+		if val, ok := TRW[newIndexT(aT, aX, aY)]; ok {
+			if val {
+				continue
+			}
+		}
+
+		var newCost = n.Cost + m[3]
+
+		node := n.NewNode(aT, aX, aY, newCost)
+
+		// MaxStopCount以上止まりすぎはだめ
+		if i == 0 {
+			node.StopCount = n.StopCount + 1
+			if node.StopCount > MaxStopCount {
+				continue
+			}
+		}
+
+		around = append(around, node)
+	}
+	return around
+}
+
+func (n Node) AroundHexaMore(g *GridMap, minTime int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool) []*Node {
+
+	cost1 := g.Resolution / v
+	cost2 := math.Sqrt(3) * cost1
+	// [time, x, y, cost]
+	motion := [13][4]float64{
+		//上
+		{1.0, 0.0, 0.0, timeStep},
+		// 隣接
+		{0.0, 1.0, 0.0, cost1},
+		{0.0, 0.0, 1.0, cost1},
+		{0.0, -1.0, 1.0, cost1},
+		{0.0, -1.0, 0.0, cost1},
+		{0.0, 0.0, -1.0, cost1},
+		{0.0, 1.0, -1.0, cost1},
+		//1個奥
+		{0.0, 1.0, 1.0, cost2},
+		{0.0, 2.0, -1.0, cost2},
+		{0.0, -1.0, -1.0, cost2},
+		{0.0, -2.0, 1.0, cost2},
+		{0.0, 1.0, -2.0, cost2},
+		{0.0, -1.0, 2.0, cost2},
 	}
 	var around []*Node
 	for i, m := range motion {
