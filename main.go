@@ -31,8 +31,7 @@ import (
 )
 
 const (
-	closeThresh      float64 = 0.85
-	robotRotVelocity float64 = 1.0 // [rad/sec]
+	closeThresh float64 = 0.85
 
 	mapFile  string = "map/willow_garage_v_edited4.pgm"
 	yamlFile string = "map/willow_garage_v_edited2.yaml"
@@ -41,11 +40,12 @@ const (
 var (
 	mode Mode = ASTAR3DHEXA
 
-	robotsize  = flag.Float64("robotSize", 0.38, "robot radius")
-	robotVel   = flag.Float64("robotVel", 1.0, "robot velocity")
-	resolution = flag.Float64("reso", 0.28, "path planning resolution")
-	vizroute   = flag.Bool("visualize", false, "whether visualize route")
-	mqttsrv    = flag.String("mqtt", "localhost", "MQTT Broker address")
+	robotsize   = flag.Float64("robotSize", 0.38, "robot radius")
+	robotVel    = flag.Float64("robotVel", 0.3, "robot velocity")
+	robotRotVel = flag.Float64("robotRotVel", 0.1, "robot rotation velocity")
+	resolution  = flag.Float64("reso", 0.28, "path planning resolution")
+	vizroute    = flag.Bool("visualize", false, "whether visualize route")
+	mqttsrv     = flag.String("mqtt", "localhost", "MQTT Broker address")
 
 	mapMetaUpdate               = false
 	mapMeta       *grid.MapMeta = nil
@@ -67,10 +67,11 @@ var (
 	plot2d *glot.Plot
 	plot3d *glot.Plot
 
-	timeStep      float64 //計算に使う1stepの秒数
-	reso          float64
-	robotRadius   float64
-	robotVelocity float64
+	timeStep         float64 //計算に使う1stepの秒数
+	reso             float64
+	robotRadius      float64
+	robotVelocity    float64
+	robotRotVelocity float64
 )
 
 func init() {
@@ -85,7 +86,7 @@ func init() {
 	robotRadius = *robotsize
 	robotVelocity = *robotVel
 	//timeStep = reso/robotVelocity + 2*math.Pi/3/robotRotVelocity // L/v + 2pi/3w  120度回転したときの一番かかる時間
-	timeStep = math.Sqrt(2) * reso / robotVelocity //切り上げ整数
+	timeStep = float64(math.Ceil(math.Sqrt(2) * reso / robotVelocity)) //切り上げ整数
 }
 
 type vizOpt struct {
@@ -363,6 +364,15 @@ func listenMQTTBroker() {
 }
 
 func LoggingSettings(logFile string) {
+	dir := fmt.Sprintf("log/%s", time.Now().Format("2006-01-02"))
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		os.Mkdir(dir, 0777)
+	}
+	dir2 := fmt.Sprintf("log/route/%s", time.Now().Format("2006-01-02"))
+	if _, err := os.Stat(dir2); os.IsNotExist(err) {
+		os.Mkdir(dir2, 0777)
+	}
+
 	logfile, _ := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	multiLogFile := io.MultiWriter(os.Stdout, logfile)
 	log.SetFlags(log.Ldate | log.Ltime)
@@ -400,14 +410,14 @@ func SetupStaticMap() {
 }
 
 func main() {
-	log.Printf("start geo-routing server mode:%s, timestep:%d, resolution:%f, robotRadius:%f, mapfile:%s", mode.String(), timeStep, reso, *robotsize, mapFile)
+	log.Printf("start geo-routing server mode:%s, timestep:%f, resolution:%f, robotRadius:%f,robotVel: %f/%f, mapfile:%s", mode.String(), timeStep, reso, *robotsize, *robotVel, *robotRotVel, mapFile)
 	go sxutil.HandleSigInt()
 	wg := sync.WaitGroup{}
 	sxutil.RegisterDeferFunction(sxutil.UnRegisterNode)
 
 	//logging configuration
 	now := time.Now()
-	LoggingSettings("log/" + now.Format("2006-01-02-15") + ".log")
+	LoggingSettings("log/" + now.Format("2006-01-02") + "/" + now.Format("2006-01-02-15") + ".log")
 
 	// connect to mqtt broker
 	//listenMQTTBroker()

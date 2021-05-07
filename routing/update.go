@@ -37,39 +37,44 @@ func (g GridMap) UpdateTimeObjMapHexa(TW TimeRobotMap, route [][3]int, robotRadi
 	var ix int
 	var iy int
 	for i := 0; i < len(route); i++ {
-		it = route[i][0]
-		ix = route[i][1]
-		iy = route[i][2]
-		TW[newIndexT(it, ix, iy)] = true
-		if robotRadius < g.Resolution {
-			continue
-		} else if robotRadius <= 2*g.Resolution {
-			for _, v := range around {
-				ny := iy + v[1]
-				nx := ix + v[0]
-				if ny < 0 || nx < 0 || nx >= g.Width || ny >= g.Height {
-					continue
-				}
-				TW[newIndexT(it, nx, ny)] = true
+		for j := -3; j <= 3; j++ {
+			it = route[i][0] + j
+			if it < 0 || it > MaxTimeLength {
+				continue
 			}
-		} else { //周囲18マス
-			for _, v := range around {
-				for d := 1; d <= 2; d++ {
-					ny := iy + v[1]*d
-					nx := ix + v[0]*d
+			ix = route[i][1]
+			iy = route[i][2]
+			TW[newIndexT(it, ix, iy)] = true
+			if robotRadius*1.1 < g.Resolution {
+				continue
+			} else if robotRadius*1.1 <= 2*g.Resolution {
+				for _, v := range around {
+					ny := iy + v[1]
+					nx := ix + v[0]
 					if ny < 0 || nx < 0 || nx >= g.Width || ny >= g.Height {
 						continue
 					}
 					TW[newIndexT(it, nx, ny)] = true
 				}
-			}
-			for _, v := range aroundMore {
-				ny := iy + v[1]
-				nx := ix + v[0]
-				if ny < 0 || nx < 0 || nx >= g.Width || ny >= g.Height {
-					continue
+			} else { //周囲18マス
+				for _, v := range around {
+					for d := 1; d <= 2; d++ {
+						ny := iy + v[1]*d
+						nx := ix + v[0]*d
+						if ny < 0 || nx < 0 || nx >= g.Width || ny >= g.Height {
+							continue
+						}
+						TW[newIndexT(it, nx, ny)] = true
+					}
 				}
-				TW[newIndexT(it, nx, ny)] = true
+				for _, v := range aroundMore {
+					ny := iy + v[1]
+					nx := ix + v[0]
+					if ny < 0 || nx < 0 || nx >= g.Width || ny >= g.Height {
+						continue
+					}
+					TW[newIndexT(it, nx, ny)] = true
+				}
 			}
 		}
 	}

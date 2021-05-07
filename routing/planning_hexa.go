@@ -127,10 +127,10 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		oerr = fmt.Errorf("robot%d path planning error: goal is not verified", id)
 		return nil, oerr
 	}
-	if m.ObjectMap[newIndex(sa, sb)] {
-		oerr = fmt.Errorf("robot%d path planning error: start point is not verified", id)
-		return nil, oerr
-	}
+	// if m.ObjectMap[newIndex(sa, sb)] {
+	// 	oerr = fmt.Errorf("robot%d path planning error: start point is not verified", id)
+	// 	return nil, oerr
+	// }
 	start := &Node{T: 0, XId: sa, YId: sb, Cost: 0, Parent: nil}
 	goal := &Node{T: 0, XId: ga, YId: gb, Cost: 0, Parent: nil}
 
@@ -155,7 +155,8 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			log.Print(current.T, current.XId, current.YId, count, elaps)
 			oerr = errors.New("path planning error: open set is empty")
 			bytes, _ := json.Marshal(logData)
-			ioutil.WriteFile(fmt.Sprintf("log/route/fail_route%d_%s.log", id, time.Now().Format("01-02-15-4")), bytes, 0666)
+			now := time.Now()
+			ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("01-02-15"), id, now.Format("01-02-15-4")), bytes, 0666)
 			return nil, oerr
 		}
 
@@ -166,7 +167,8 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			if jerr != nil {
 				log.Print(jerr)
 			}
-			ioutil.WriteFile(fmt.Sprintf("log/route/fail_route%d_%s.log", id, time.Now().Format("01-02-15-4")), bytes, 0666)
+			now := time.Now()
+			ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("01-02-15"), id, now.Format("01-02-15-4")), bytes, 0666)
 			oerr = errors.New("path planning timeouted")
 			return m.finalPath(goal, closeSetT), oerr
 		}
@@ -195,7 +197,8 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			if jerr != nil {
 				log.Print(jerr)
 			}
-			ioutil.WriteFile(fmt.Sprintf("log/route/route%d_%s.log", id, time.Now().Format("01-02-15-4")), bytes, 0666)
+			now := time.Now()
+			ioutil.WriteFile(fmt.Sprintf("log/route/%s/route%d_%s.log", now.Format("01-02-15"), id, now.Format("01-02-15-4")), bytes, 0666)
 			goal.Parent = current.Parent
 			goal.Cost = current.Cost
 			goal.T = current.T
@@ -348,7 +351,7 @@ func (n Node) AroundHexaMore(g *GridMap, minTime int, v, w, timeStep float64, TR
 	// [time, x, y, cost]
 	motion := [13][4]float64{
 		//上
-		{1.0, 0.0, 0.0, timeStep},
+		{0.0, 0.0, 0.0, timeStep},
 		// 隣接
 		{0.0, 1.0, 0.0, cost1},
 		{0.0, 0.0, 1.0, cost1},
@@ -357,18 +360,18 @@ func (n Node) AroundHexaMore(g *GridMap, minTime int, v, w, timeStep float64, TR
 		{0.0, 0.0, -1.0, cost1},
 		{0.0, 1.0, -1.0, cost1},
 		//1個奥
-		{0.0, 1.0, 1.0, cost2},
-		{0.0, 2.0, -1.0, cost2},
-		{0.0, -1.0, -1.0, cost2},
-		{0.0, -2.0, 1.0, cost2},
-		{0.0, 1.0, -2.0, cost2},
-		{0.0, -1.0, 2.0, cost2},
+		{1.0, 1.0, 1.0, cost2},
+		{1.0, 2.0, -1.0, cost2},
+		{1.0, -1.0, -1.0, cost2},
+		{1.0, -2.0, 1.0, cost2},
+		{1.0, 1.0, -2.0, cost2},
+		{1.0, -1.0, 2.0, cost2},
 	}
 	var around []*Node
 	for i, m := range motion {
 		aX := n.XId + int(m[1])
 		aY := n.YId + int(m[2])
-		aT := n.T + int(m[0]) + int(timeStep)
+		aT := n.T + int(m[0]) + 1
 
 		//時間コストマップ外の時間は外す
 		if aT >= g.MaxT {
