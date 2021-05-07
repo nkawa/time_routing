@@ -35,15 +35,15 @@ const (
 	robotVelocity    float64 = 1.0 // [m/sec]
 	robotRotVelocity float64 = 1.0 // [rad/sec]
 
-	mapFile  string = "map/willow_garage_v_edited3.pgm"
+	mapFile  string = "map/willow_garage_v_edited4.pgm"
 	yamlFile string = "map/willow_garage_v_edited2.yaml"
 )
 
 var (
 	mode Mode = ASTAR3DHEXA
 
-	robotsize  = flag.Float64("robotSize", 0.4, "robot radius")
-	resolution = flag.Float64("reso", 0.5, "path planning resolution")
+	robotsize  = flag.Float64("robotSize", 0.33, "robot radius")
+	resolution = flag.Float64("reso", 0.3, "path planning resolution")
 	vizroute   = flag.Bool("visualize", true, "whether visualize route")
 	mqttsrv    = flag.String("mqtt", "localhost", "MQTT Broker address")
 
@@ -404,7 +404,7 @@ func testPath() {
 }
 
 func main() {
-	log.Printf("start geo-routing server mode:%s, timestep:%d, resolution:%f", mode.String(), timeStep, reso)
+	log.Printf("start geo-routing server mode:%s, timestep:%d, resolution:%f, robotRadius:%f, mapfile:%s", mode.String(), timeStep, reso, *robotsize, mapFile)
 	go sxutil.HandleSigInt()
 	wg := sync.WaitGroup{}
 	sxutil.RegisterDeferFunction(sxutil.UnRegisterNode)
