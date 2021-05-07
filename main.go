@@ -86,7 +86,7 @@ func init() {
 	robotRadius = *robotsize
 	robotVelocity = *robotVel
 	//timeStep = reso/robotVelocity + 2*math.Pi/3/robotRotVelocity // L/v + 2pi/3w  120度回転したときの一番かかる時間
-	timeStep = float64(math.Ceil(math.Sqrt(2) * reso / robotVelocity)) //切り上げ整数
+	timeStep = float64(math.Ceil(math.Sqrt(2)*reso/robotVelocity + 2*math.Pi/3/robotRotVelocity)) //切り上げ整数
 }
 
 type vizOpt struct {
@@ -133,7 +133,7 @@ func routing(rcd *cav.DestinationRequest) {
 		updateStep := int(math.Round(now.Sub(timeMapMin).Seconds() / timeStep))
 		gridMap.UpdateStep(timeRobotMap, updateStep)
 		log.Printf("update robot cost map timestep:%d", updateStep)
-		timeMapMin = now
+		timeMapMin.Add(time.Duration(updateStep))
 
 		// get other robots map
 		others := make(map[grid.Index]bool)
@@ -163,7 +163,9 @@ func routing(rcd *cav.DestinationRequest) {
 			gridMap.UpdateStep(timeRobotMap, updateStep)
 			gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, robotRadius)
 			log.Printf("update robot cost map timestep:%d", updateStep)
-			timeMapMin = now
+			timeMapMin.Add(time.Duration(updateStep))
+
+			go grid.SaveCostMap(grid.TRWCopy(timeRobotMap))
 
 			if robot, ok := robotList[int(rcd.RobotId)]; ok {
 				robot.SetPath(routei)
@@ -246,7 +248,6 @@ func routeCallback(client *sxutil.SXServiceClient, sp *api.Supply) {
 	log.Printf("receive dest request robot%d", rcd.RobotId)
 	routeCh <- rcd
 	//go routing(rcd)
-
 }
 
 func vizualizeHandler() {
@@ -371,6 +372,10 @@ func LoggingSettings(logFile string) {
 	dir2 := fmt.Sprintf("log/route/%s", time.Now().Format("2006-01-02"))
 	if _, err := os.Stat(dir2); os.IsNotExist(err) {
 		os.Mkdir(dir2, 0777)
+	}
+	dir3 := fmt.Sprintf("log/costmap/%s", time.Now().Format("2006-01-02"))
+	if _, err := os.Stat(dir3); os.IsNotExist(err) {
+		os.Mkdir(dir3, 0777)
 	}
 
 	logfile, _ := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)

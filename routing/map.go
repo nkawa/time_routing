@@ -1,10 +1,14 @@
 package routing
 
 import (
+	"encoding/json"
+	"fmt"
 	"image"
 	"image/color"
+	"io/ioutil"
 	"log"
 	"os"
+	"time"
 
 	ros "github.com/fukurin00/go_ros_msg"
 	_ "github.com/jbuchbinder/gopnm"
@@ -95,4 +99,20 @@ func (m MapMeta) GetObjectMap() [][2]float64 {
 		}
 	}
 	return objMap
+}
+
+func SaveCostMap(tw TimeRobotMap) {
+	keymap := make(map[int][]Index)
+	for key, _ := range tw {
+		t, x, y := key.GetXYT()
+		if _, ok := keymap[t]; ok {
+			keymap[t] = append(keymap[t], newIndex(x, y))
+		} else {
+			keymap[t] = []Index{newIndex(x, y)}
+		}
+	}
+	jout, _ := json.MarshalIndent(keymap, "", " ")
+	now := time.Now()
+	fname := fmt.Sprintf("log/costmap/%s/costmap_%s.log", now.Format("2006-01-02"), now.Format("01-02-15"))
+	ioutil.WriteFile(fname, jout, 0666)
 }
