@@ -102,13 +102,13 @@ func (m MapMeta) GetObjectMap() [][2]float64 {
 }
 
 func SaveCostMap(tw TimeRobotMap) {
-	keymap := make(map[int][]Index)
-	for key, _ := range tw {
+	keymap := make(map[int][][2]int)
+	for key := range tw {
 		t, x, y := key.GetXYT()
-		if _, ok := keymap[t]; ok {
-			keymap[t] = append(keymap[t], newIndex(x, y))
+		if _, ok := keymap[t]; !ok {
+			keymap[t] = [][2]int{{x, y}}
 		} else {
-			keymap[t] = []Index{newIndex(x, y)}
+			keymap[t] = append(keymap[t], [2]int{x, y})
 		}
 	}
 	jout, _ := json.MarshalIndent(keymap, "", " ")

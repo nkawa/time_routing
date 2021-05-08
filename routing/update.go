@@ -15,9 +15,15 @@ func (g GridMap) UpdateStep(TW TimeRobotMap, step int) {
 
 func (key IndexT) GetXYT() (int, int, int) {
 	t := int(key / IndexT(HASH2))
-	x := int(key % IndexT(HASH2))
+	x := int(key % IndexT(HASH2) % IndexT(HASH))
 	y := int((key / IndexT(HASH)) % IndexT(HASH))
 	return t, x, y
+}
+
+func (key Index) GetXY() (int, int) {
+	x := int(key % Index(HASH))
+	y := int(key / Index(HASH))
+	return x, y
 }
 
 func TRWCopy(current TimeRobotMap) TimeRobotMap {
@@ -45,9 +51,9 @@ func (g GridMap) UpdateTimeObjMapHexa(TW TimeRobotMap, route [][3]int, robotRadi
 			ix = route[i][1]
 			iy = route[i][2]
 			TW[newIndexT(it, ix, iy)] = true
-			if robotRadius*1.1 < g.Resolution {
+			if robotRadius*1.1 < g.Resolution/2 {
 				continue
-			} else if robotRadius*1.1 <= 2*g.Resolution {
+			} else if robotRadius*1.1 <= g.Resolution {
 				for _, v := range around {
 					ny := iy + v[1]
 					nx := ix + v[0]

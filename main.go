@@ -40,9 +40,9 @@ const (
 var (
 	mode Mode = ASTAR3DHEXA
 
-	robotsize   = flag.Float64("robotSize", 0.38, "robot radius")
+	robotsize   = flag.Float64("robotSize", 0.41, "robot radius")
 	robotVel    = flag.Float64("robotVel", 0.3, "robot velocity")
-	robotRotVel = flag.Float64("robotRotVel", 0.1, "robot rotation velocity")
+	robotRotVel = flag.Float64("robotRotVel", 0.5, "robot rotation velocity")
 	resolution  = flag.Float64("reso", 0.28, "path planning resolution")
 	vizroute    = flag.Bool("visualize", false, "whether visualize route")
 	mqttsrv     = flag.String("mqtt", "localhost", "MQTT Broker address")
@@ -85,8 +85,9 @@ func init() {
 	reso = *resolution
 	robotRadius = *robotsize
 	robotVelocity = *robotVel
+	robotRotVelocity = *robotRotVel
 	//timeStep = reso/robotVelocity + 2*math.Pi/3/robotRotVelocity // L/v + 2pi/3w  120度回転したときの一番かかる時間
-	timeStep = float64(math.Ceil(math.Sqrt(2)*reso/robotVelocity + 2*math.Pi/3/robotRotVelocity)) //切り上げ整数
+	timeStep = float64(math.Ceil(reso/robotVelocity + 2*math.Pi*robotRadius/3/robotRotVelocity)) //切り上げ整数
 }
 
 type vizOpt struct {

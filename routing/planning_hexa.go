@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+const (
+	Mode = 2 //around 6
+	// Mode = 2 //around 12
+)
+
 // initialize custom resolution
 // using main
 func NewGridMapResoHexa(m MapMeta, robotRadius float64, resolution float64, objMap [][2]float64) *GridMap {
@@ -175,7 +180,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 
 		// get minimum cost node in open set
 		minCost := 9999999999999999999.9
-		minTime = 99999999999999999
+		minTime = 999999999999999999
 		var minKey IndexT
 		for key, val := range openSetT {
 			calCost := val.Cost + heuristicHexa(goal, val)/v // length to goal / vel
@@ -188,6 +193,10 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			}
 		}
 		current = openSetT[minKey]
+		if current == nil {
+			log.Printf("Error, current is nil. openset is %d minKey is %d, cost is %f", len(openSetT), minKey, minCost)
+		}
+
 		logData = append(logData, logOpt{current.XId, current.YId, current.T, current.Cost, current.StopCount})
 
 		// find Goal
@@ -221,7 +230,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		closeSet[nodeIndex(current)] = current
 		closeSetT[nodeIndexT(current)] = current
 
-		around := current.AroundHexaMore(&m, minTime, v, w, timeStep, TRW, otherRobot)
+		around := current.AroundHexa(&m, minTime, v, w, timeStep, TRW, otherRobot)
 		for _, an := range around {
 			indT := nodeIndexT(an)
 			ind := nodeIndex(an)
@@ -270,17 +279,9 @@ func (g GridMap) Route2PosHexa(minT float64, timeStep float64, route [][3]int) [
 }
 
 func (n Node) AroundHexa(g *GridMap, minTime int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool) []*Node {
-
-	// var diffA int
-	// var diffB int
-	// if n.Parent != nil {
-	// 	diffA = n.XId - n.Parent.XId
-	// 	diffB = n.YId - n.Parent.YId
-	// }
-
-	cost1 := g.Resolution / v
+	cost1 := g.Resolution/v + 2*math.Pi/(3*w)
 	// [time, x, y, cost]
-	motion := [7][4]float64{
+	motion := [][4]float64{
 		{1.0, 0.0, 0.0, timeStep},
 		{0.0, 1.0, 0.0, cost1},
 		{0.0, 0.0, 1.0, cost1},
@@ -289,6 +290,21 @@ func (n Node) AroundHexa(g *GridMap, minTime int, v, w, timeStep float64, TRW Ti
 		{0.0, 0.0, -1.0, cost1},
 		{0.0, 1.0, -1.0, cost1},
 	}
+	if Mode == 2 {
+		//cost2 := math.Sqrt(3)*cost1
+		cost2 := 2 * cost1
+		motion2 := [][4]float64{
+			//1個奥
+			{1.0, 1.0, 1.0, cost2},
+			{1.0, 2.0, -1.0, cost2},
+			{1.0, -1.0, -1.0, cost2},
+			{1.0, -2.0, 1.0, cost2},
+			{1.0, 1.0, -2.0, cost2},
+			{1.0, -1.0, 2.0, cost2},
+		}
+		motion = append(motion, motion2...)
+	}
+
 	var around []*Node
 	for i, m := range motion {
 		aX := n.XId + int(m[1])
@@ -328,95 +344,6 @@ func (n Node) AroundHexa(g *GridMap, minTime int, v, w, timeStep float64, TRW Ti
 		}
 
 		var newCost = n.Cost + m[3]
-
-		node := n.NewNode(aT, aX, aY, newCost)
-
-		// MaxStopCount以上止まりすぎはだめ
-		if i == 0 {
-			node.StopCount = n.StopCount + 1
-			if node.StopCount > MaxStopCount {
-				continue
-			}
-		}
-
-		around = append(around, node)
-	}
-	return around
-}
-
-func (n Node) AroundHexaMore(g *GridMap, minTime int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool) []*Node {
-
-	cost1 := g.Resolution / v
-	cost2 := math.Sqrt(3) * cost1
-	// [time, x, y, cost]
-	motion := [13][4]float64{
-		//上
-		{0.0, 0.0, 0.0, timeStep},
-		// 隣接
-		{0.0, 1.0, 0.0, cost1},
-		{0.0, 0.0, 1.0, cost1},
-		{0.0, -1.0, 1.0, cost1},
-		{0.0, -1.0, 0.0, cost1},
-		{0.0, 0.0, -1.0, cost1},
-		{0.0, 1.0, -1.0, cost1},
-		//1個奥
-		{1.0, 1.0, 1.0, cost2},
-		{1.0, 2.0, -1.0, cost2},
-		{1.0, -1.0, -1.0, cost2},
-		{1.0, -2.0, 1.0, cost2},
-		{1.0, 1.0, -2.0, cost2},
-		{1.0, -1.0, 2.0, cost2},
-	}
-	var around []*Node
-	for i, m := range motion {
-		aX := n.XId + int(m[1])
-		aY := n.YId + int(m[2])
-		aT := n.T + int(m[0]) + 1
-
-		//時間コストマップ外の時間は外す
-		if aT >= g.MaxT {
-			continue
-		}
-
-		//map外のノードは外す
-		if aX < 0 || aX >= g.Width {
-			continue
-		}
-		if aY < 0 || aY >= g.Height {
-			continue
-		}
-
-		//元から障害物で通れないところは外す
-		if g.ObjectMap[newIndex(aX, aY)] {
-			continue
-		}
-
-		//他のロボットがいる場所は外す
-		if val, ok := otherRobot[newIndex(aX, aY)]; ok {
-			if val {
-				continue
-			}
-		}
-
-		//移動中のロボットがいて通れないところは外す
-		if val, ok := TRW[newIndexT(aT, aX, aY)]; ok {
-			if val {
-				continue
-			}
-		}
-
-		var newCost = n.Cost + m[3]
-		// stay してないとき
-		// if diffA != 0 && diffB != 0 && i != 0 {
-		// 	// 前のグリッドからそのまま直進できるならコスト少なめ
-		// 	if m[1] == float64(diffA) && m[2] == float64(diffB) {
-		// 		newCost = n.Cost + m[3]
-
-		// 	} else {
-		// 		// 回転が必要なら回転分のコストを加える
-		// 		newCost = n.Cost + m[3] + math.Pi/w/3
-		// 	}
-		// }
 
 		node := n.NewNode(aT, aX, aY, newCost)
 
