@@ -1,5 +1,31 @@
 package routing
 
+import (
+	"encoding/csv"
+	"log"
+	"os"
+	"strconv"
+)
+
+func SaveRouteCsv(fname string, route [][3]float64) {
+	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		log.Print(err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	writer.Write([]string{"timestamp", "x", "y"})
+	for _, r := range route {
+		ts := strconv.FormatFloat(r[0], 'f', 4, 64)
+		xs := strconv.FormatFloat(r[1], 'f', 4, 64)
+		ys := strconv.FormatFloat(r[2], 'f', 4, 64)
+
+		writer.Write([]string{ts, xs, ys})
+	}
+	writer.Flush()
+}
+
 func Convert2DPoint(obj [][2]float64) (obj2d [][]float64) {
 	var xs []float64
 	var ys []float64

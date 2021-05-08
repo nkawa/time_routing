@@ -33,8 +33,10 @@ import (
 const (
 	closeThresh float64 = 0.85
 
-	mapFile  string = "map/willow_garage_v_edited4.pgm"
-	yamlFile string = "map/willow_garage_v_edited2.yaml"
+	// mapFile  string = "map/willow_garage_v_edited4.pgm"
+	// yamlFile string = "map/willow_garage_v_edited2.yaml"
+	mapFile  string = "map/test_map.pgm"
+	yamlFile string = "map/test_map.yaml"
 )
 
 var (
@@ -87,7 +89,7 @@ func init() {
 	robotRadius = *robotsize
 	robotVelocity = *robotVel
 	robotRotVelocity = *robotRotVel
-	timeStep = reso/robotVelocity
+	timeStep = reso / robotVelocity
 	//timeStep = reso/robotVelocity + 2*math.Pi*robotRadius/3/robotRotVelocity // L/v + 2pi/3w  120度回転したときの一番かかる時間
 	//timeStep = float64(math.Ceil(reso/robotVelocity + 2*math.Pi*robotRadius/3/robotRotVelocity)) //切り上げ整数
 	aroundCell = grid.GetAoundCell(robotRadius, reso)
@@ -174,6 +176,8 @@ func routing(rcd *cav.DestinationRequest) {
 			log.Printf("update robot cost map timestep:%d", updateStep)
 			timeMapMin.Add(time.Duration(updateStep))
 
+			csvName := fmt.Sprintf("log/route/%s/%s_%d.csv", now.Format("2006-01-02"), now.Format("01-02-15"), rcd.RobotId)
+			go grid.SaveRouteCsv(csvName, route)
 			go grid.SaveCostMap(grid.TRWCopy(timeRobotMap))
 
 			if robot, ok := robotList[int(rcd.RobotId)]; ok {
@@ -417,9 +421,46 @@ func SetupStaticMap() {
 		timeMapMin = time.Now()
 		if *vizroute {
 			plot2d.AddPointGroup("objmap", "dots", gridMap.ConvertObjMap2PointHexa())
-			plot2d.SavePlot("map/static_obj_map_hexa.png")
+			plot2d.SavePlot("map/static_obj_map_hexa_test.png")
 		}
 		// plot3d.AddPointGroup("objmap", "dots", gridMap.ConvertObjMap3PointHexa())
+	}
+}
+
+func testPath() {
+	isx, isy := gridMap.Pos2IndHexa(0.5, 3)
+	igx, igy := gridMap.Pos2IndHexa(6, 0.5)
+
+	others := make(map[grid.Index]bool)
+	routei, err := gridMap.PlanHexa(0, isx, isy, igx, igy, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
+	if err != nil {
+		log.Print(err)
+	} else {
+		route := gridMap.Route2PosHexa(0, timeStep, routei)
+		plot2d.AddPointGroup("route", "points", grid.Convert32DPoint(route))
+		// plot2d.SavePlot("route/test_route2D.png")
+		plot3d.AddPointGroup("route", "points", grid.Convert3DPoint(route))
+		// plot3d.SavePlot("route/test_route3D.png")
+		now := time.Now()
+		csvName := fmt.Sprintf("log/route/%s/test1.csv", now.Format("2006-01-02"))
+		grid.SaveRouteCsv(csvName, route)
+	}
+	gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, aroundCell)
+	isx, isy = gridMap.Pos2IndHexa(6, 3)
+	igx, igy = gridMap.Pos2IndHexa(0.5, 3)
+
+	routei, err = gridMap.PlanHexa(1, isx, isy, igx, igy, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
+	if err != nil {
+		log.Print(err)
+	} else {
+		route := gridMap.Route2PosHexa(0, timeStep, routei)
+		plot2d.AddPointGroup("route2", "points", grid.Convert32DPoint(route))
+		plot2d.SavePlot("route/test_route2D.png")
+		plot3d.AddPointGroup("route2", "points", grid.Convert3DPoint(route))
+		plot3d.SavePlot("route/test_route3D.png")
+		now := time.Now()
+		csvName := fmt.Sprintf("log/route/%s/test2.csv", now.Format("2006-01-02"))
+		grid.SaveRouteCsv(csvName, route)
 	}
 }
 
@@ -452,6 +493,8 @@ func main() {
 	log.Print("start subscribing")
 
 	go handleRouting()
+
+	testPath()
 	go subsclibeRouteSupply(synerex.RouteClient)
 	go subsclibeMqttSupply(synerex.MqttClient)
 

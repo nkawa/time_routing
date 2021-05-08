@@ -158,7 +158,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		if len(openSetT) == 0 {
 			elaps := time.Since(startTime).Seconds()
 			log.Print(current.T, current.XId, current.YId, count, elaps)
-			oerr = errors.New("path planning error: open set is empty")
+			oerr = fmt.Errorf("path planning error: open set is empty, count %d", count)
 			bytes, _ := json.Marshal(logData)
 			now := time.Now()
 			ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
@@ -233,31 +233,33 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		around := current.AroundHexa(&m, minTime, v, w, timeStep, TRW, otherRobot)
 		for _, an := range around {
 			indT := nodeIndexT(an)
-			ind := nodeIndex(an)
+			//ind := nodeIndex(an)
 
 			// すでに通った道を戻るのはだめ
-			if _, ok := closeSet[ind]; ok {
+			if _, ok := closeSetT[indT]; ok {
 				// ただし、止まる場合を除く
 				if an.Parent.XId != an.XId || an.Parent.YId != an.YId {
 					continue
 				}
 			}
 
-			//二次元上で同じ座標がなければ入れる
-			if _, ok := openSet[ind]; !ok {
-				openSet[ind] = an
-				if _, ok := openSetT[indT]; !ok {
-					openSetT[indT] = an
-				}
-				//二回目以降の二次元座表のときは外す
-			} else {
-				// ただし、止まる場合を除く
-				if an.Parent.XId == an.XId || an.Parent.YId == an.YId {
-					if _, ok := openSetT[indT]; !ok {
-						openSetT[indT] = an
-					}
-				}
+			if _, ok := openSetT[indT]; !ok {
+				openSetT[indT] = an
 			}
+
+			//二次元上で同じ座標がなければ入れる
+			// if _, ok := openSet[ind]; !ok {
+			// 	openSet[ind] = an
+
+			// 	//二回目以降の二次元座表のときは外す
+			// } else {
+			// 	// ただし、止まる場合を除く
+			// 	if an.Parent.XId == an.XId || an.Parent.YId == an.YId {
+			// 		if _, ok := openSetT[indT]; !ok {
+			// 			openSetT[indT] = an
+			// 		}
+			// 	}
+			// }
 
 		}
 	}
