@@ -161,7 +161,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			oerr = errors.New("path planning error: open set is empty")
 			bytes, _ := json.Marshal(logData)
 			now := time.Now()
-			ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("01-02-15"), id, now.Format("01-02-15-4")), bytes, 0666)
+			ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
 			return nil, oerr
 		}
 
@@ -173,7 +173,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 				log.Print(jerr)
 			}
 			now := time.Now()
-			ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("01-02-15"), id, now.Format("01-02-15-4")), bytes, 0666)
+			ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
 			oerr = errors.New("path planning timeouted")
 			return m.finalPath(goal, closeSetT), oerr
 		}
@@ -207,7 +207,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 				log.Print(jerr)
 			}
 			now := time.Now()
-			ioutil.WriteFile(fmt.Sprintf("log/route/%s/route%d_%s.log", now.Format("01-02-15"), id, now.Format("01-02-15-4")), bytes, 0666)
+			ioutil.WriteFile(fmt.Sprintf("log/route/%s/route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
 			goal.Parent = current.Parent
 			goal.Cost = current.Cost
 			goal.T = current.T
@@ -282,7 +282,7 @@ func (n Node) AroundHexa(g *GridMap, minTime int, v, w, timeStep float64, TRW Ti
 	cost1 := g.Resolution/v + 2*math.Pi/(3*w)
 	// [time, x, y, cost]
 	motion := [][4]float64{
-		{1.0, 0.0, 0.0, timeStep},
+		{0.0, 0.0, 0.0, timeStep},
 		{0.0, 1.0, 0.0, cost1},
 		{0.0, 0.0, 1.0, cost1},
 		{0.0, -1.0, 1.0, cost1},

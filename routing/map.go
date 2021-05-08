@@ -14,6 +14,10 @@ import (
 	_ "github.com/jbuchbinder/gopnm"
 )
 
+var (
+	imData image.Image
+)
+
 type MapMeta struct {
 	W      int
 	H      int
@@ -45,12 +49,12 @@ func ReadStaticMapImage(yamlFile, mapFile string, closeThreth float64) (*MapMeta
 	}
 	defer file.Close()
 
-	imageData, _, err := image.Decode(file)
+	imData, _, err = image.Decode(file)
 	if err != nil {
 		return m, err
 	}
 
-	bound := imageData.Bounds()
+	bound := imData.Bounds()
 	m.W = bound.Dx()
 	m.H = bound.Dy()
 
@@ -59,7 +63,7 @@ func ReadStaticMapImage(yamlFile, mapFile string, closeThreth float64) (*MapMeta
 	close := 0
 	for j := m.H - 1; j >= 0; j-- {
 		for i := 0; i < m.W; i++ {
-			oldPix := imageData.At(i, j)
+			oldPix := imData.At(i, j)
 			pixel := color.GrayModel.Convert(oldPix)
 			pixelU := color.GrayModel.Convert(pixel).(color.Gray).Y
 
@@ -111,7 +115,7 @@ func SaveCostMap(tw TimeRobotMap) {
 			keymap[t] = append(keymap[t], [2]int{x, y})
 		}
 	}
-	jout, _ := json.MarshalIndent(keymap, "", " ")
+	jout, _ := json.Marshal(keymap)
 	now := time.Now()
 	fname := fmt.Sprintf("log/costmap/%s/costmap_%s.log", now.Format("2006-01-02"), now.Format("01-02-15"))
 	ioutil.WriteFile(fname, jout, 0666)

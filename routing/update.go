@@ -2,6 +2,12 @@ package routing
 
 import "math"
 
+var (
+	Around     = [][2]int{{-1, 0}, {0, -1}, {1, -1}, {1, 0}, {0, 1}, {-1, 1}}
+	AroundMore = [][2]int{{2, -1}, {1, -2}, {-1, -1}, {-2, 1}, {2, -1}, {1, 1}}
+	Around2    = [][2]int{{-2, 0}, {0, -2}, {2, -2}, {2, 0}, {0, 2}, {-2, 2}}
+)
+
 func GetAoundCell(r, l float64) int {
 	if 1.1*r <= l/2 {
 		return 1
@@ -49,9 +55,6 @@ func TRWCopy(current TimeRobotMap) TimeRobotMap {
 }
 
 func (g GridMap) UpdateTimeObjMapHexa(TW TimeRobotMap, route [][3]int, aroundCell int) {
-	around := [][2]int{{-1, 0}, {0, -1}, {1, -1}, {1, 0}, {0, 1}, {-1, 1}}
-	aroundMore := [][2]int{{2, -1}, {1, -2}, {-1, -1}, {-2, 1}, {2, -1}, {1, 1}}
-	around2 := [][2]int{{-2, 0}, {0, -2}, {2, -2}, {2, 0}, {0, 2}, {-2, 2}}
 
 	var ar [][2]int
 	var it int
@@ -69,11 +72,11 @@ func (g GridMap) UpdateTimeObjMapHexa(TW TimeRobotMap, route [][3]int, aroundCel
 			TW[newIndexT(it, ix, iy)] = true
 			//around
 			if aroundCell == 2 {
-				ar = append(ar, around...)
+				ar = append(ar, Around...)
 			} else {
-				ar = append(ar, around...)
-				ar = append(ar, around2...)
-				ar = append(ar, aroundMore...)
+				ar = append(ar, Around...)
+				ar = append(ar, Around2...)
+				ar = append(ar, AroundMore...)
 			}
 			for _, v := range ar {
 				ny := iy + v[1]

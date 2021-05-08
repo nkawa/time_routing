@@ -72,7 +72,7 @@ var (
 	robotRadius      float64
 	robotVelocity    float64
 	robotRotVelocity float64
-	aroundCell       float64
+	aroundCell       int
 )
 
 func init() {
@@ -87,9 +87,10 @@ func init() {
 	robotRadius = *robotsize
 	robotVelocity = *robotVel
 	robotRotVelocity = *robotRotVel
-	//timeStep = reso/robotVelocity + 2*math.Pi/3/robotRotVelocity // L/v + 2pi/3w  120度回転したときの一番かかる時間
-	timeStep = float64(math.Ceil(reso/robotVelocity + 2*math.Pi*robotRadius/3/robotRotVelocity)) //切り上げ整数
-	aroundCell = float64(grid.GetAoundCell(robotRadius, reso))
+	timeStep = reso/robotVelocity
+	//timeStep = reso/robotVelocity + 2*math.Pi*robotRadius/3/robotRotVelocity // L/v + 2pi/3w  120度回転したときの一番かかる時間
+	//timeStep = float64(math.Ceil(reso/robotVelocity + 2*math.Pi*robotRadius/3/robotRotVelocity)) //切り上げ整数
+	aroundCell = grid.GetAoundCell(robotRadius, reso)
 }
 
 type vizOpt struct {
@@ -147,6 +148,11 @@ func routing(rcd *cav.DestinationRequest) {
 				if !robot.HavePath {
 					ia, ib := gridMap.Pos2IndHexa(robot.Pos.X, robot.Pos.Y)
 					others[grid.NewIndex(ia, ib)] = true
+					if aroundCell >= 2 {
+						for _, an := range grid.Around {
+							others[grid.NewIndex(ia+an[0], ib+an[1])] = true
+						}
+					}
 				}
 			}
 		}
@@ -164,7 +170,7 @@ func routing(rcd *cav.DestinationRequest) {
 			now := time.Now()
 			updateStep := int(math.Round(now.Sub(timeMapMin).Seconds() / timeStep))
 			gridMap.UpdateStep(timeRobotMap, updateStep)
-			gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, robotRadius)
+			gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, aroundCell)
 			log.Printf("update robot cost map timestep:%d", updateStep)
 			timeMapMin.Add(time.Duration(updateStep))
 
