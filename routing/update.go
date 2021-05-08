@@ -1,16 +1,29 @@
 package routing
 
+import "math"
+
+func GetAoundCell(r, l float64) int {
+	if 1.1*r <= l/2 {
+		return 1
+	} else if 1.1*r <= 2/math.Sqrt(3)*l {
+		return 2
+	} else if 1.1*r <= 4/math.Sqrt(3)*l {
+		return 3
+	}
+	//return 4
+
+	return int(math.Ceil(math.Sqrt(3) * 1.1 * r / l))
+}
+
 func (g GridMap) UpdateStep(TW TimeRobotMap, step int) {
 	newTRW := make(map[IndexT]bool)
 	for key, val := range TW {
-		// t := int(key / IndexT(HASH2))
-		// x := int(key % IndexT(HASH2))
-		// y := int((key / IndexT(HASH)) % IndexT(HASH))
 		t, x, y := key.GetXYT()
 		if t < MaxTimeLength-step-1 {
 			newTRW[newIndexT(t+step, x, y)] = val
 		}
 	}
+	TW = newTRW
 }
 
 func (key IndexT) GetXYT() (int, int, int) {
@@ -35,10 +48,12 @@ func TRWCopy(current TimeRobotMap) TimeRobotMap {
 	return trw
 }
 
-func (g GridMap) UpdateTimeObjMapHexa(TW TimeRobotMap, route [][3]int, robotRadius float64) {
-	around := [6][2]int{{-1, 0}, {0, -1}, {1, -1}, {1, 0}, {0, 1}, {-1, 1}}
-	aroundMore := [6][2]int{{2, -1}, {1, -2}, {-1, -1}, {-2, 1}, {2, -1}, {1, 1}}
+func (g GridMap) UpdateTimeObjMapHexa(TW TimeRobotMap, route [][3]int, aroundCell int) {
+	around := [][2]int{{-1, 0}, {0, -1}, {1, -1}, {1, 0}, {0, 1}, {-1, 1}}
+	aroundMore := [][2]int{{2, -1}, {1, -2}, {-1, -1}, {-2, 1}, {2, -1}, {1, 1}}
+	around2 := [][2]int{{-2, 0}, {0, -2}, {2, -2}, {2, 0}, {0, 2}, {-2, 2}}
 
+	var ar [][2]int
 	var it int
 	var ix int
 	var iy int
@@ -50,38 +65,25 @@ func (g GridMap) UpdateTimeObjMapHexa(TW TimeRobotMap, route [][3]int, robotRadi
 			}
 			ix = route[i][1]
 			iy = route[i][2]
+			//center
 			TW[newIndexT(it, ix, iy)] = true
-			if robotRadius*1.1 < g.Resolution/2 {
-				continue
-			} else if robotRadius*1.1 <= g.Resolution {
-				for _, v := range around {
-					ny := iy + v[1]
-					nx := ix + v[0]
-					if ny < 0 || nx < 0 || nx >= g.Width || ny >= g.Height {
-						continue
-					}
-					TW[newIndexT(it, nx, ny)] = true
-				}
-			} else { //周囲18マス
-				for _, v := range around {
-					for d := 1; d <= 2; d++ {
-						ny := iy + v[1]*d
-						nx := ix + v[0]*d
-						if ny < 0 || nx < 0 || nx >= g.Width || ny >= g.Height {
-							continue
-						}
-						TW[newIndexT(it, nx, ny)] = true
-					}
-				}
-				for _, v := range aroundMore {
-					ny := iy + v[1]
-					nx := ix + v[0]
-					if ny < 0 || nx < 0 || nx >= g.Width || ny >= g.Height {
-						continue
-					}
-					TW[newIndexT(it, nx, ny)] = true
-				}
+			//around
+			if aroundCell == 2 {
+				ar = append(ar, around...)
+			} else {
+				ar = append(ar, around...)
+				ar = append(ar, around2...)
+				ar = append(ar, aroundMore...)
 			}
+			for _, v := range ar {
+				ny := iy + v[1]
+				nx := ix + v[0]
+				if ny < 0 || nx < 0 || nx >= g.Width || ny >= g.Height {
+					continue
+				}
+				TW[newIndexT(it, nx, ny)] = true
+			}
+
 		}
 	}
 	for j := it; j < MaxTimeLength; j++ {

@@ -72,6 +72,7 @@ var (
 	robotRadius      float64
 	robotVelocity    float64
 	robotRotVelocity float64
+	aroundCell       float64
 )
 
 func init() {
@@ -88,6 +89,7 @@ func init() {
 	robotRotVelocity = *robotRotVel
 	//timeStep = reso/robotVelocity + 2*math.Pi/3/robotRotVelocity // L/v + 2pi/3w  120度回転したときの一番かかる時間
 	timeStep = float64(math.Ceil(reso/robotVelocity + 2*math.Pi*robotRadius/3/robotRotVelocity)) //切り上げ整数
+	aroundCell = float64(grid.GetAoundCell(robotRadius, reso))
 }
 
 type vizOpt struct {
@@ -416,7 +418,7 @@ func SetupStaticMap() {
 }
 
 func main() {
-	log.Printf("start geo-routing server mode:%s, timestep:%f, resolution:%f, robotRadius:%f,robotVel: %f/%f, mapfile:%s", mode.String(), timeStep, reso, *robotsize, *robotVel, *robotRotVel, mapFile)
+	log.Printf("start geo-routing server mode:%s, timestep:%f, resolution:%f, robotRadius:%f,robotVel: %f/%f, aroundCell: %d, mapfile:%s", mode.String(), timeStep, reso, *robotsize, *robotVel, *robotRotVel, aroundCell, mapFile)
 	go sxutil.HandleSigInt()
 	wg := sync.WaitGroup{}
 	sxutil.RegisterDeferFunction(sxutil.UnRegisterNode)
