@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	Mode = 2 //around 6
+	Mode = 1 //around 6
 	// Mode = 2 //around 12
 )
 
@@ -110,7 +110,7 @@ type logOpt struct {
 	StopCount int
 }
 
-func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool) (route [][3]int, oerr error) {
+func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool) (route [][3]int, stops []int, oerr error) {
 	startTime := time.Now()
 	var logData []logOpt
 
@@ -130,7 +130,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 
 	if m.ObjectMap[newIndex(ga, gb)] {
 		oerr = fmt.Errorf("robot%d path planning error: goal is not verified", id)
-		return nil, oerr
+		return nil, nil, oerr
 	}
 	// if m.ObjectMap[newIndex(sa, sb)] {
 	// 	oerr = fmt.Errorf("robot%d path planning error: start point is not verified", id)
@@ -156,13 +156,13 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		count += 1
 		// failure
 		if len(openSetT) == 0 {
-			elaps := time.Since(startTime).Seconds()
-			log.Print(current.T, current.XId, current.YId, count, elaps)
+			// elaps := time.Since(startTime).Seconds()
+			// log.Print(current.T, current.XId, current.YId, count, elaps)
 			oerr = fmt.Errorf("path planning error: open set is empty, count %d", count)
 			bytes, _ := json.Marshal(logData)
 			now := time.Now()
 			ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
-			return nil, oerr
+			return nil, nil, oerr
 		}
 
 		// 20秒以上で諦める
@@ -175,7 +175,8 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			now := time.Now()
 			ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
 			oerr = errors.New("path planning timeouted")
-			return m.finalPath(goal, closeSetT), oerr
+			routei, _, _ := m.finalPath(goal, closeSetT)
+			return routei, nil, oerr
 		}
 
 		// get minimum cost node in open set
@@ -212,7 +213,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			goal.Cost = current.Cost
 			goal.T = current.T
 			elaps := time.Since(startTime).Seconds()
-			route = m.finalPath(goal, closeSetT)
+			route, stops, scount := m.finalPath(goal, closeSetT)
 			log.Printf("robot%d planning (%f, %f) to (%f, %f) took %f seconds, count: %d, length: %d",
 				id,
 				m.MapOrigin.X+float64(sx)*m.Resolution,
@@ -223,7 +224,8 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 				count,
 				len(route),
 			)
-			return route, nil
+			log.Printf("it has %d length, %f seconds, %d stop", len(route), float64(len(route))*timeStep, scount)
+			return route, stops, nil
 		}
 
 		delete(openSetT, minKey)

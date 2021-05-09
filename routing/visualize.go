@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-func SaveRouteCsv(fname string, route [][3]float64) {
+func SaveRouteCsv(fname string, route [][3]float64, stops []int) {
 	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		log.Print(err)
@@ -15,13 +15,13 @@ func SaveRouteCsv(fname string, route [][3]float64) {
 	defer file.Close()
 
 	writer := csv.NewWriter(file)
-	writer.Write([]string{"timestamp", "x", "y"})
-	for _, r := range route {
+	writer.Write([]string{"t", "x", "y", "stop"})
+	for i, r := range route {
 		ts := strconv.FormatFloat(r[0], 'f', 4, 64)
 		xs := strconv.FormatFloat(r[1], 'f', 4, 64)
 		ys := strconv.FormatFloat(r[2], 'f', 4, 64)
-
-		writer.Write([]string{ts, xs, ys})
+		ss := strconv.Itoa(stops[i])
+		writer.Write([]string{ts, xs, ys, ss})
 	}
 	writer.Flush()
 }

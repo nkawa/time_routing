@@ -121,7 +121,8 @@ func (m GridMap) Plan(sx, sy, gx, gy int, TRW TimeRobotMap) (route [][3]int, oer
 				elaps,
 				count,
 			)
-			return m.finalPath(goal, closeSetT), nil
+			routei, _, _ := m.finalPath(goal, closeSetT)
+			return routei, nil
 		}
 
 		delete(openSet, minKey)
@@ -146,16 +147,22 @@ func (m GridMap) Plan(sx, sy, gx, gy int, TRW TimeRobotMap) (route [][3]int, oer
 	}
 }
 
-func (m GridMap) finalPath(goal *Node, closeSet map[IndexT]*Node) (route [][3]int) {
+func (m GridMap) finalPath(goal *Node, closeSet map[IndexT]*Node) (route [][3]int, stops []int, stopCount int) {
+	stopCount = 0
 	route = append(route, [3]int{goal.T, goal.XId, goal.YId})
+	stops = append(stops, goal.StopCount)
 
 	parent := goal.Parent
 	for parent != nil {
 		n := closeSet[nodeIndexT(parent)]
 		route = append([][3]int{{n.T, n.XId, n.YId}}, route...)
+		stops = append(stops, n.StopCount)
 		parent = n.Parent
+		if n.StopCount > 0 {
+			stopCount += 1
+		}
 	}
-	return route
+	return route, stops, stopCount
 }
 
 func (g GridMap) Route2Pos(minT float64, route [][3]int) [][3]float64 {

@@ -33,10 +33,10 @@ import (
 const (
 	closeThresh float64 = 0.85
 
-	// mapFile  string = "map/willow_garage_v_edited4.pgm"
-	// yamlFile string = "map/willow_garage_v_edited2.yaml"
-	mapFile  string = "map/test_map.pgm"
-	yamlFile string = "map/test_map.yaml"
+	mapFile  string = "map/willow_garage_v_edited4.pgm"
+	yamlFile string = "map/willow_garage_v_edited2.yaml"
+	// mapFile  string = "map/test_map.pgm"
+	// yamlFile string = "map/test_map.yaml"
 )
 
 var (
@@ -136,10 +136,12 @@ func routing(rcd *cav.DestinationRequest) {
 
 		// update robot map
 		now := time.Now()
-		updateStep := int(math.Round(now.Sub(timeMapMin).Seconds() / timeStep))
+		elap := now.Sub(timeMapMin).Seconds()
+		updateStep := int(math.Round(elap / timeStep))
 		gridMap.UpdateStep(timeRobotMap, updateStep)
-		log.Printf("update robot cost map timestep:%d", updateStep)
-		timeMapMin.Add(time.Duration(updateStep))
+		addTime := time.Duration(int64(float64(updateStep)*timeStep*math.Pow10(6))) * time.Microsecond
+		timeMapMin = timeMapMin.Add(addTime)
+		log.Printf("elaps %fseconds update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
 
 		// get other robots map
 		others := make(map[grid.Index]bool)
@@ -159,7 +161,7 @@ func routing(rcd *cav.DestinationRequest) {
 			}
 		}
 
-		routei, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
+		routei, stops, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
 		if err != nil {
 			log.Print(err)
 		} else {
@@ -169,15 +171,17 @@ func routing(rcd *cav.DestinationRequest) {
 				log.Print(err)
 			}
 			sendPath(jsonPayload, int(rcd.RobotId))
-			now := time.Now()
-			updateStep := int(math.Round(now.Sub(timeMapMin).Seconds() / timeStep))
-			gridMap.UpdateStep(timeRobotMap, updateStep)
 			gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, aroundCell)
-			log.Printf("update robot cost map timestep:%d", updateStep)
-			timeMapMin.Add(time.Duration(updateStep))
+			now := time.Now()
+			elap := now.Sub(timeMapMin).Seconds()
+			updateStep := int(math.Round(elap / timeStep))
+			gridMap.UpdateStep(timeRobotMap, updateStep)
+			addTime := time.Duration(int64(float64(updateStep)*timeStep*math.Pow10(6))) * time.Microsecond
+			timeMapMin = timeMapMin.Add(addTime)
+			log.Printf("elaps %fsecond update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
 
-			csvName := fmt.Sprintf("log/route/%s/%s_%d.csv", now.Format("2006-01-02"), now.Format("01-02-15"), rcd.RobotId)
-			go grid.SaveRouteCsv(csvName, route)
+			csvName := fmt.Sprintf("log/route/%s/%s_%d.csv", now.Format("2006-01-02"), now.Format("01-02-15-4"), rcd.RobotId)
+			go grid.SaveRouteCsv(csvName, route, stops)
 			go grid.SaveCostMap(grid.TRWCopy(timeRobotMap))
 
 			if robot, ok := robotList[int(rcd.RobotId)]; ok {
@@ -432,7 +436,7 @@ func testPath() {
 	igx, igy := gridMap.Pos2IndHexa(6, 0.5)
 
 	others := make(map[grid.Index]bool)
-	routei, err := gridMap.PlanHexa(0, isx, isy, igx, igy, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
+	routei, stops, err := gridMap.PlanHexa(0, isx, isy, igx, igy, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
 	if err != nil {
 		log.Print(err)
 	} else {
@@ -443,13 +447,13 @@ func testPath() {
 		// plot3d.SavePlot("route/test_route3D.png")
 		now := time.Now()
 		csvName := fmt.Sprintf("log/route/%s/test1.csv", now.Format("2006-01-02"))
-		grid.SaveRouteCsv(csvName, route)
+		grid.SaveRouteCsv(csvName, route, stops)
 	}
 	gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, aroundCell)
 	isx, isy = gridMap.Pos2IndHexa(6, 3)
 	igx, igy = gridMap.Pos2IndHexa(0.5, 3)
 
-	routei, err = gridMap.PlanHexa(1, isx, isy, igx, igy, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
+	routei, stops, err = gridMap.PlanHexa(1, isx, isy, igx, igy, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
 	if err != nil {
 		log.Print(err)
 	} else {
@@ -460,7 +464,7 @@ func testPath() {
 		plot3d.SavePlot("route/test_route3D.png")
 		now := time.Now()
 		csvName := fmt.Sprintf("log/route/%s/test2.csv", now.Format("2006-01-02"))
-		grid.SaveRouteCsv(csvName, route)
+		grid.SaveRouteCsv(csvName, route, stops)
 	}
 }
 
@@ -494,7 +498,7 @@ func main() {
 
 	go handleRouting()
 
-	testPath()
+	//testPath()
 	go subsclibeRouteSupply(synerex.RouteClient)
 	go subsclibeMqttSupply(synerex.MqttClient)
 
