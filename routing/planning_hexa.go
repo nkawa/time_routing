@@ -1,13 +1,16 @@
 package routing
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
+	"sync"
 	"time"
+)
+
+var (
+	Mu sync.Mutex
 )
 
 const (
@@ -112,7 +115,7 @@ type logOpt struct {
 
 func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool) (route [][3]int, stops []int, oerr error) {
 	startTime := time.Now()
-	var logData []logOpt
+	//var logData []logOpt
 
 	sx := int(getXAB(float64(sa), float64(sb)))
 	sy := int(getYAB(float64(sa), float64(sb)))
@@ -159,21 +162,21 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			// elaps := time.Since(startTime).Seconds()
 			// log.Print(current.T, current.XId, current.YId, count, elaps)
 			oerr = fmt.Errorf("path planning error: open set is empty, count %d", count)
-			bytes, _ := json.Marshal(logData)
-			now := time.Now()
-			ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
+			//bytes, _ := json.Marshal(logData)
+			// now := time.Now()
+			// ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
 			return nil, nil, oerr
 		}
 
 		// 20秒以上で諦める
 		if time.Since(startTime).Seconds() > 20 {
 			log.Printf("path planning time out. count %d current is (%d, %d, %d)", count, current.T, current.XId, current.YId)
-			bytes, jerr := json.MarshalIndent(logData, "", " ")
-			if jerr != nil {
-				log.Print(jerr)
-			}
-			now := time.Now()
-			ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
+			// bytes, jerr := json.MarshalIndent(logData, "", " ")
+			// if jerr != nil {
+			// 	log.Print(jerr)
+			// }
+			// now := time.Now()
+			// ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
 			oerr = errors.New("path planning timeouted")
 			routei, _, _ := m.finalPath(goal, closeSetT)
 			return routei, nil, oerr
@@ -198,17 +201,17 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			log.Printf("Error, current is nil. openset is %d minKey is %d, cost is %f", len(openSetT), minKey, minCost)
 		}
 
-		logData = append(logData, logOpt{current.XId, current.YId, current.T, current.Cost, current.StopCount})
+		//logData = append(logData, logOpt{current.XId, current.YId, current.T, current.Cost, current.StopCount})
 
 		// find Goal
 		if current.XId == ga && current.YId == gb {
 			log.Print("find goal")
-			bytes, jerr := json.MarshalIndent(logData, "", " ")
-			if jerr != nil {
-				log.Print(jerr)
-			}
-			now := time.Now()
-			ioutil.WriteFile(fmt.Sprintf("log/route/%s/route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
+			// bytes, jerr := json.MarshalIndent(logData, "", " ")
+			// if jerr != nil {
+			// 	log.Print(jerr)
+			// }
+			// now := time.Now()
+			// ioutil.WriteFile(fmt.Sprintf("log/route/%s/route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
 			goal.Parent = current.Parent
 			goal.Cost = current.Cost
 			goal.T = current.T
@@ -248,21 +251,6 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			if _, ok := openSetT[indT]; !ok {
 				openSetT[indT] = an
 			}
-
-			//二次元上で同じ座標がなければ入れる
-			// if _, ok := openSet[ind]; !ok {
-			// 	openSet[ind] = an
-
-			// 	//二回目以降の二次元座表のときは外す
-			// } else {
-			// 	// ただし、止まる場合を除く
-			// 	if an.Parent.XId == an.XId || an.Parent.YId == an.YId {
-			// 		if _, ok := openSetT[indT]; !ok {
-			// 			openSetT[indT] = an
-			// 		}
-			// 	}
-			// }
-
 		}
 	}
 }

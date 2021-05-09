@@ -156,7 +156,7 @@ func (m GridMap) finalPath(goal *Node, closeSet map[IndexT]*Node) (route [][3]in
 	for parent != nil {
 		n := closeSet[nodeIndexT(parent)]
 		route = append([][3]int{{n.T, n.XId, n.YId}}, route...)
-		stops = append(stops, n.StopCount)
+		stops = append([]int{n.StopCount}, stops...)
 		parent = n.Parent
 		if n.StopCount > 0 {
 			stopCount += 1

@@ -6,14 +6,15 @@ var (
 	Around     = [][2]int{{-1, 0}, {0, -1}, {1, -1}, {1, 0}, {0, 1}, {-1, 1}}
 	AroundMore = [][2]int{{2, -1}, {1, -2}, {-1, -1}, {-2, 1}, {2, -1}, {1, 1}}
 	Around2    = [][2]int{{-2, 0}, {0, -2}, {2, -2}, {2, 0}, {0, 2}, {-2, 2}}
+	Arrond3    = [][2]int{{-3, 0}, {0, -3}, {3, -3}, {3, 0}, {0, 3}, {-3, 3}, {2, 1}, {1, 2}, {3, -1}, {3, -2}, {2, -3}, {1, -3}, {-1, -2}, {-2, -1}, {-3, 1}, {-3, 2}, {-2, 3}, {-1, 3}}
 )
 
 func GetAoundCell(r, l float64) int {
-	if 1.1*r <= l/2 {
+	if 2*1.1*r <= l/2 {
 		return 1
-	} else if 1.1*r <= 2/math.Sqrt(3)*l {
+	} else if 2*1.1*r <= 2/math.Sqrt(3)*l {
 		return 2
-	} else if 1.1*r <= 4/math.Sqrt(3)*l {
+	} else if 2*1.1*r <= 4/math.Sqrt(3)*l {
 		return 3
 	}
 	//return 4
@@ -61,7 +62,7 @@ func (g GridMap) UpdateTimeObjMapHexa(TW TimeRobotMap, route [][3]int, aroundCel
 	var ix int
 	var iy int
 	for i := 0; i < len(route); i++ {
-		for j := -3; j <= 3; j++ {
+		for j := -2; j <= 2; j++ {
 			it = route[i][0] + j
 			if it < 0 || it > MaxTimeLength {
 				continue
@@ -73,10 +74,15 @@ func (g GridMap) UpdateTimeObjMapHexa(TW TimeRobotMap, route [][3]int, aroundCel
 			//around
 			if aroundCell == 2 {
 				ar = append(ar, Around...)
+			} else if aroundCell == 3 {
+				ar = append(ar, Around...)
+				ar = append(ar, Around2...)
+				ar = append(ar, AroundMore...)
 			} else {
 				ar = append(ar, Around...)
 				ar = append(ar, Around2...)
 				ar = append(ar, AroundMore...)
+				ar = append(ar, Arrond3...)
 			}
 			for _, v := range ar {
 				ny := iy + v[1]
