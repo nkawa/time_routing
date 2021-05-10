@@ -115,7 +115,7 @@ type logOpt struct {
 	StopCount int
 }
 
-func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool) (route [][3]int, stops []int, oerr error) {
+func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool, isFirst bool) (route [][3]int, stops []int, oerr error) {
 	startTime := time.Now()
 	//var logData []logOpt
 
@@ -125,12 +125,13 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 	gy := int(getYAB(float64(ga), float64(gb)))
 
 	//timeStep := m.Resolution/v + 2*math.Pi/3/w // L/v + 2pi/3w  120度回転したときの一番かかる時間
-	log.Printf("start planning robot%d (%f, %f) to (%f, %f)",
+	log.Printf("start planning robot%d (%f, %f) to (%f, %f), first is %t",
 		id,
 		m.MapOrigin.X+float64(sx)*m.Resolution,
 		m.MapOrigin.Y+float64(sy)*m.Resolution,
 		m.MapOrigin.X+float64(gx)*m.Resolution,
 		m.MapOrigin.Y+float64(gy)*m.Resolution,
+		isFirst,
 	)
 
 	if m.ObjectMap[newIndex(ga, gb)] {
@@ -254,6 +255,14 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			if _, ok := closeSetT[indT]; ok {
 				// ただし、止まる場合を除く
 				if an.Parent.XId != an.XId || an.Parent.YId != an.YId {
+					continue
+				}
+				continue
+			}
+
+			//最初の場合は普通の2dとする
+			if isFirst {
+				if _, ok := closeSet[nodeIndex(an)]; ok {
 					continue
 				}
 			}

@@ -135,12 +135,15 @@ func routing(rcd *cav.DestinationRequest) {
 		}
 
 		// get other robots map
+		var otherCount int = 0
+		var isFirst bool = false
 		others := make(map[grid.Index]bool)
 		for id, robot := range robotList {
 			if id == int(rcd.RobotId) {
 				continue
 			} else {
 				if !robot.HavePath {
+					otherCount += 1
 					ia, ib := gridMap.Pos2IndHexa(robot.Pos.X, robot.Pos.Y)
 					others[grid.NewIndex(ia, ib)] = true
 					if aroundCell >= 2 {
@@ -151,6 +154,9 @@ func routing(rcd *cav.DestinationRequest) {
 				}
 			}
 		}
+		if otherCount >= len(robotList)-1 {
+			isFirst = true
+		}
 		// update robot map
 		now := time.Now()
 		elap := now.Sub(timeMapMin).Seconds()
@@ -160,7 +166,7 @@ func routing(rcd *cav.DestinationRequest) {
 		timeMapMin = timeMapMin.Add(addTime)
 		log.Printf("elaps %fseconds update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
 
-		routei, stops, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
+		routei, stops, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others, isFirst)
 		if err != nil {
 			log.Print(err)
 		} else {
@@ -430,42 +436,42 @@ func SetupStaticMap() {
 	}
 }
 
-func testPath() {
-	isx, isy := gridMap.Pos2IndHexa(0.5, 3)
-	igx, igy := gridMap.Pos2IndHexa(6, 0.5)
+// func testPath() {
+// 	isx, isy := gridMap.Pos2IndHexa(0.5, 3)
+// 	igx, igy := gridMap.Pos2IndHexa(6, 0.5)
 
-	others := make(map[grid.Index]bool)
-	routei, stops, err := gridMap.PlanHexa(0, isx, isy, igx, igy, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
-	if err != nil {
-		log.Print(err)
-	} else {
-		route := gridMap.Route2PosHexa(0, timeStep, routei)
-		plot2d.AddPointGroup("route", "points", grid.Convert32DPoint(route))
-		// plot2d.SavePlot("route/test_route2D.png")
-		plot3d.AddPointGroup("route", "points", grid.Convert3DPoint(route))
-		// plot3d.SavePlot("route/test_route3D.png")
-		now := time.Now()
-		csvName := fmt.Sprintf("log/route/%s/test1.csv", now.Format("2006-01-02"))
-		grid.SaveRouteCsv(csvName, route, stops)
-	}
-	gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, aroundCell)
-	isx, isy = gridMap.Pos2IndHexa(6, 3)
-	igx, igy = gridMap.Pos2IndHexa(0.5, 3)
+// 	others := make(map[grid.Index]bool)
+// 	routei, stops, err := gridMap.PlanHexa(0, isx, isy, igx, igy, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
+// 	if err != nil {
+// 		log.Print(err)
+// 	} else {
+// 		route := gridMap.Route2PosHexa(0, timeStep, routei)
+// 		plot2d.AddPointGroup("route", "points", grid.Convert32DPoint(route))
+// 		// plot2d.SavePlot("route/test_route2D.png")
+// 		plot3d.AddPointGroup("route", "points", grid.Convert3DPoint(route))
+// 		// plot3d.SavePlot("route/test_route3D.png")
+// 		now := time.Now()
+// 		csvName := fmt.Sprintf("log/route/%s/test1.csv", now.Format("2006-01-02"))
+// 		grid.SaveRouteCsv(csvName, route, stops)
+// 	}
+// 	gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, aroundCell)
+// 	isx, isy = gridMap.Pos2IndHexa(6, 3)
+// 	igx, igy = gridMap.Pos2IndHexa(0.5, 3)
 
-	routei, stops, err = gridMap.PlanHexa(1, isx, isy, igx, igy, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
-	if err != nil {
-		log.Print(err)
-	} else {
-		route := gridMap.Route2PosHexa(0, timeStep, routei)
-		plot2d.AddPointGroup("route2", "points", grid.Convert32DPoint(route))
-		plot2d.SavePlot("route/test_route2D.png")
-		plot3d.AddPointGroup("route2", "points", grid.Convert3DPoint(route))
-		plot3d.SavePlot("route/test_route3D.png")
-		now := time.Now()
-		csvName := fmt.Sprintf("log/route/%s/test2.csv", now.Format("2006-01-02"))
-		grid.SaveRouteCsv(csvName, route, stops)
-	}
-}
+// 	routei, stops, err = gridMap.PlanHexa(1, isx, isy, igx, igy, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
+// 	if err != nil {
+// 		log.Print(err)
+// 	} else {
+// 		route := gridMap.Route2PosHexa(0, timeStep, routei)
+// 		plot2d.AddPointGroup("route2", "points", grid.Convert32DPoint(route))
+// 		plot2d.SavePlot("route/test_route2D.png")
+// 		plot3d.AddPointGroup("route2", "points", grid.Convert3DPoint(route))
+// 		plot3d.SavePlot("route/test_route3D.png")
+// 		now := time.Now()
+// 		csvName := fmt.Sprintf("log/route/%s/test2.csv", now.Format("2006-01-02"))
+// 		grid.SaveRouteCsv(csvName, route, stops)
+// 	}
+// }
 
 func main() {
 	log.Printf("start geo-routing server mode:%s, timestep:%f, resolution:%f, robotRadius:%f,robotVel: %f/%f, aroundCell: %d, mapfile:%s", mode.String(), timeStep, reso, *robotsize, *robotVel, *robotRotVel, aroundCell, mapFile)
