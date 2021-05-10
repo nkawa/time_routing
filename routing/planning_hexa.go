@@ -1,8 +1,10 @@
 package routing
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math"
 	"sync"
@@ -143,17 +145,18 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 	goal := &Node{T: 0, XId: ga, YId: gb, Cost: 0, Parent: nil}
 
 	openSetT := make(map[IndexT]*Node)
-	openSet := make(map[Index]*Node)
+	//openSet := make(map[Index]*Node)
 
 	closeSet := make(map[Index]*Node)
 	closeSetT := make(map[IndexT]*Node)
 
 	openSetT[nodeIndexT(start)] = start
-	openSet[nodeIndex(start)] = start
+	//openSet[nodeIndex(start)] = start
 
 	count := 0
 	current := &Node{T: 0}
 	var minTime int
+	var logData []logOpt
 
 	for {
 		count += 1
@@ -169,14 +172,21 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		}
 
 		// 20秒以上で諦める
-		if time.Since(startTime).Seconds() > 20 {
-			log.Printf("path planning time out. count %d current is (%d, %d, %d)", count, current.T, current.XId, current.YId)
-			// bytes, jerr := json.MarshalIndent(logData, "", " ")
-			// if jerr != nil {
-			// 	log.Print(jerr)
-			// }
-			// now := time.Now()
-			// ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
+		if time.Since(startTime).Seconds() > 60 {
+			a := m.Origin.X + float64(current.XId)*m.Resolution
+			b := m.Origin.Y + float64(current.YId)*m.Resolution
+			log.Printf("path planning time out. count %d current is (%d, %f, %f)",
+				count,
+				current.T,
+				getXAB(a, b),
+				getYAB(a, b),
+			)
+			bytes, jerr := json.MarshalIndent(logData, "", " ")
+			if jerr != nil {
+				log.Print(jerr)
+			}
+			now := time.Now()
+			ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
 			oerr = errors.New("path planning timeouted")
 			routei, _, _ := m.finalPath(goal, closeSetT)
 			return routei, nil, oerr
@@ -187,7 +197,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		minTime = 999999999999999999
 		var minKey IndexT
 		for key, val := range openSetT {
-			calCost := val.Cost + heuristicHexa(goal, val)/v // length to goal / vel
+			calCost := (val.Cost + heuristicHexa(goal, val)/v) / 100 // length to goal / vel
 			if calCost < minCost {
 				minCost = calCost
 				minKey = key
@@ -201,7 +211,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			log.Printf("Error, current is nil. openset is %d minKey is %d, cost is %f", len(openSetT), minKey, minCost)
 		}
 
-		//logData = append(logData, logOpt{current.XId, current.YId, current.T, current.Cost, current.StopCount})
+		logData = append(logData, logOpt{current.XId, current.YId, current.T, current.Cost, current.StopCount})
 
 		// find Goal
 		if current.XId == ga && current.YId == gb {
@@ -217,12 +227,12 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			goal.T = current.T
 			elaps := time.Since(startTime).Seconds()
 			route, stops, scount := m.finalPath(goal, closeSetT)
-			log.Printf("robot%d planning (%f, %f) to (%f, %f) took %f seconds, count: %d, length: %d",
+			log.Printf("robot%d planning took %f seconds, count: %d, length: %d",
 				id,
-				m.MapOrigin.X+float64(sx)*m.Resolution,
-				m.MapOrigin.Y+float64(sy)*m.Resolution,
-				m.MapOrigin.X+float64(gx)*m.Resolution,
-				m.MapOrigin.Y+float64(gy)*m.Resolution,
+				// m.MapOrigin.X+float64(sx)*m.Resolution,
+				// m.MapOrigin.Y+float64(sy)*m.Resolution,
+				// m.MapOrigin.X+float64(gx)*m.Resolution,
+				// m.MapOrigin.Y+float64(gy)*m.Resolution,
 				elaps,
 				count,
 				len(route),

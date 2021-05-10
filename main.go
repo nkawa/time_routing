@@ -134,15 +134,6 @@ func routing(rcd *cav.DestinationRequest) {
 			val.SetDest(ros.Point{X: float64(rcd.Destination.X), Y: float64(rcd.Destination.Y)})
 		}
 
-		// update robot map
-		now := time.Now()
-		elap := now.Sub(timeMapMin).Seconds()
-		updateStep := int(math.Round(elap / timeStep))
-		gridMap.UpdateStep(timeRobotMap, updateStep)
-		addTime := time.Duration(int64(float64(updateStep)*timeStep*math.Pow10(6))) * time.Microsecond
-		timeMapMin = timeMapMin.Add(addTime)
-		log.Printf("elaps %fseconds update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
-
 		// get other robots map
 		others := make(map[grid.Index]bool)
 		for id, robot := range robotList {
@@ -160,12 +151,20 @@ func routing(rcd *cav.DestinationRequest) {
 				}
 			}
 		}
+		// update robot map
+		now := time.Now()
+		elap := now.Sub(timeMapMin).Seconds()
+		updateStep := int(math.Round(elap / timeStep))
+		timeRobotMap = gridMap.UpdateStep(timeRobotMap, updateStep)
+		addTime := time.Duration(int64(float64(updateStep)*timeStep*math.Pow10(6))) * time.Microsecond
+		timeMapMin = timeMapMin.Add(addTime)
+		log.Printf("elaps %fseconds update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
 
 		routei, stops, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
 		if err != nil {
 			log.Print(err)
 		} else {
-			route := gridMap.Route2PosHexa(float64(time.Now().Unix()), timeStep, routei)
+			route := gridMap.Route2PosHexa(float64(timeMapMin.UnixNano()*time.Second.Nanoseconds()), timeStep, routei)
 			jsonPayload, err = msg.MakePathMsg(route)
 			if err != nil {
 				log.Print(err)
@@ -175,14 +174,14 @@ func routing(rcd *cav.DestinationRequest) {
 			now := time.Now()
 			elap := now.Sub(timeMapMin).Seconds()
 			updateStep := int(math.Round(elap / timeStep))
-			gridMap.UpdateStep(timeRobotMap, updateStep)
+			timeRobotMap = gridMap.UpdateStep(timeRobotMap, updateStep)
 			addTime := time.Duration(int64(float64(updateStep)*timeStep*math.Pow10(6))) * time.Microsecond
 			timeMapMin = timeMapMin.Add(addTime)
 			log.Printf("elaps %fsecond update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
 
 			csvName := fmt.Sprintf("log/route/%s/%s_%d.csv", now.Format("2006-01-02"), now.Format("01-02-15-4"), rcd.RobotId)
 			go grid.SaveRouteCsv(csvName, route, stops)
-			go grid.SaveCostMap(grid.TRWCopy(timeRobotMap))
+			//go grid.SaveCostMap(grid.TRWCopy(timeRobotMap))
 
 			if robot, ok := robotList[int(rcd.RobotId)]; ok {
 				robot.SetPath(routei)

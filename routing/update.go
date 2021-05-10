@@ -22,15 +22,15 @@ func GetAoundCell(r, l float64) int {
 	return int(math.Ceil(math.Sqrt(3) * 1.1 * r / l))
 }
 
-func (g GridMap) UpdateStep(TW TimeRobotMap, step int) {
+func (g GridMap) UpdateStep(TW TimeRobotMap, step int) TimeRobotMap {
 	newTRW := make(map[IndexT]bool)
 	for key, val := range TW {
 		t, x, y := key.GetXYT()
-		if t < MaxTimeLength-step-1 {
-			newTRW[newIndexT(t+step, x, y)] = val
+		if t >= step {
+			newTRW[newIndexT(t-step, x, y)] = val
 		}
 	}
-	TW = newTRW
+	return newTRW
 }
 
 func (key IndexT) GetXYT() (int, int, int) {
