@@ -35,8 +35,6 @@ const (
 
 	mapFile  string = "map/willow_garage_v_edited4.pgm"
 	yamlFile string = "map/willow_garage_v_edited2.yaml"
-	// mapFile  string = "map/test_map.pgm"
-	// yamlFile string = "map/test_map.yaml"
 )
 
 var (
@@ -335,56 +333,6 @@ func subsclibeMqttSupply(client *sxutil.SXServiceClient) {
 	}
 }
 
-func handleMqttMessage() {
-	for {
-		msg := <-msgCh
-		if !mapMetaUpdate {
-			log.Print("updating global costmap..")
-			synerex.Mu.Lock()
-			var occupancy ros.OccupancyGrid
-			merr := json.Unmarshal(msg.Payload(), &occupancy)
-			if merr != nil {
-				log.Print(merr)
-			} else {
-				mapMeta = grid.LoadROSMap(occupancy, 50)
-				gridMap = grid.NewGridMap(*mapMeta, robotRadius)
-				log.Print("global costmap updated")
-				plot2d.AddPointGroup("costmap", "dots", gridMap.ConvertObjMap2Point())
-				mapMetaUpdate = true
-				plot2d.SavePlot("map/global_costmap.png")
-			}
-			synerex.Mu.Unlock()
-		}
-
-	}
-}
-
-// listening MQTT topics
-func listenMQTTBroker() {
-	log.Print("setup mqtt client")
-	logFile := "log/mqtt/" + time.Now().Format("2006-01-02") + ".log"
-	logfile, _ := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	multiLogFile := io.MultiWriter(os.Stdout, logfile)
-	mqtt.ERROR = log.New(multiLogFile, "[ERROR] ", 0)
-	mqtt.CRITICAL = log.New(multiLogFile, "[CRIT] ", 0)
-	mqtt.WARN = log.New(multiLogFile, "[WARN]  ", 0)
-	//mqtt.DEBUG = log.New(os.Stdout, "[DEBUG] ", 0)
-	// var myHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
-	// 	msgCh <- msg
-	// }
-	opts := mqtt.NewClientOptions()
-	opts.AddBroker("tcp://" + *mqttsrv + ":1883") // currently only 1883 port.
-
-	clt = mqtt.NewClient(opts)
-
-	if token := clt.Connect(); token.Wait() && token.Error() != nil {
-		log.Fatalf("MQTT connection error: %s", token.Error())
-	}
-
-	// if subscribeToken := clt.Subscribe("map/global_costmap", 0, myHandler); subscribeToken.Wait() && subscribeToken.Error() != nil {
-	// 	log.Fatalf("MQTT subscribe error: %s", subscribeToken.Error())
-	// }
-}
 
 func LoggingSettings(logFile string) {
 	dir := fmt.Sprintf("log/%s", time.Now().Format("2006-01-02"))
@@ -430,48 +378,11 @@ func SetupStaticMap() {
 		timeMapMin = time.Now()
 		if *vizroute {
 			plot2d.AddPointGroup("objmap", "dots", gridMap.ConvertObjMap2PointHexa())
-			plot2d.SavePlot("map/static_obj_map_hexa_test.png")
+			plot2d.SavePlot("map/static_obj_map_hexa.png")
 		}
 		// plot3d.AddPointGroup("objmap", "dots", gridMap.ConvertObjMap3PointHexa())
 	}
 }
-
-// func testPath() {
-// 	isx, isy := gridMap.Pos2IndHexa(0.5, 3)
-// 	igx, igy := gridMap.Pos2IndHexa(6, 0.5)
-
-// 	others := make(map[grid.Index]bool)
-// 	routei, stops, err := gridMap.PlanHexa(0, isx, isy, igx, igy, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
-// 	if err != nil {
-// 		log.Print(err)
-// 	} else {
-// 		route := gridMap.Route2PosHexa(0, timeStep, routei)
-// 		plot2d.AddPointGroup("route", "points", grid.Convert32DPoint(route))
-// 		// plot2d.SavePlot("route/test_route2D.png")
-// 		plot3d.AddPointGroup("route", "points", grid.Convert3DPoint(route))
-// 		// plot3d.SavePlot("route/test_route3D.png")
-// 		now := time.Now()
-// 		csvName := fmt.Sprintf("log/route/%s/test1.csv", now.Format("2006-01-02"))
-// 		grid.SaveRouteCsv(csvName, route, stops)
-// 	}
-// 	gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, aroundCell)
-// 	isx, isy = gridMap.Pos2IndHexa(6, 3)
-// 	igx, igy = gridMap.Pos2IndHexa(0.5, 3)
-
-// 	routei, stops, err = gridMap.PlanHexa(1, isx, isy, igx, igy, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
-// 	if err != nil {
-// 		log.Print(err)
-// 	} else {
-// 		route := gridMap.Route2PosHexa(0, timeStep, routei)
-// 		plot2d.AddPointGroup("route2", "points", grid.Convert32DPoint(route))
-// 		plot2d.SavePlot("route/test_route2D.png")
-// 		plot3d.AddPointGroup("route2", "points", grid.Convert3DPoint(route))
-// 		plot3d.SavePlot("route/test_route3D.png")
-// 		now := time.Now()
-// 		csvName := fmt.Sprintf("log/route/%s/test2.csv", now.Format("2006-01-02"))
-// 		grid.SaveRouteCsv(csvName, route, stops)
-// 	}
-// }
 
 func main() {
 	log.Printf("start geo-routing server mode:%s, timestep:%f, resolution:%f, robotRadius:%f,robotVel: %f/%f, aroundCell: %d, mapfile:%s", mode.String(), timeStep, reso, *robotsize, *robotVel, *robotRotVel, aroundCell, mapFile)
@@ -482,10 +393,6 @@ func main() {
 	//logging configuration
 	now := time.Now()
 	LoggingSettings("log/" + now.Format("2006-01-02") + "/" + now.Format("2006-01-02-15") + ".log")
-
-	// connect to mqtt broker
-	//listenMQTTBroker()
-	// go handleMqttMessage()
 
 	// Synerex Configuration
 	synerex.SetupSynerex()
