@@ -173,7 +173,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		}
 
 		// 20秒以上で諦める
-		if time.Since(startTime).Seconds() > 60 {
+		if time.Since(startTime).Seconds() > 30 {
 			a := m.Origin.X + float64(current.XId)*m.Resolution
 			b := m.Origin.Y + float64(current.YId)*m.Resolution
 			log.Printf("path planning time out. count %d current is (%d, %f, %f)",

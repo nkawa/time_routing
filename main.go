@@ -33,7 +33,7 @@ import (
 const (
 	closeThresh float64 = 0.85
 
-	mapFile  string = "map/willow_garage_v_edited4.pgm"
+	mapFile  string = "map/willow_garage_v_edited_obj.pgm"
 	yamlFile string = "map/willow_garage_v_edited2.yaml"
 	// mapFile  string = "map/test_map.pgm"
 	// yamlFile string = "map/test_map.yaml"
@@ -154,6 +154,7 @@ func routing(rcd *cav.DestinationRequest) {
 				}
 			}
 		}
+		log.Printf("robot is %d not have path robot is %d", len(robotList), otherCount)
 		if otherCount >= len(robotList)-1 {
 			isFirst = true
 		}
@@ -164,13 +165,14 @@ func routing(rcd *cav.DestinationRequest) {
 		timeRobotMap = gridMap.UpdateStep(timeRobotMap, updateStep)
 		addTime := time.Duration(int64(float64(updateStep)*timeStep*math.Pow10(6))) * time.Microsecond
 		timeMapMin = timeMapMin.Add(addTime)
+		log.Print(timeMapMin)
 		log.Printf("elaps %fseconds update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
 
 		routei, stops, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others, isFirst)
 		if err != nil {
 			log.Print(err)
 		} else {
-			route := gridMap.Route2PosHexa(float64(timeMapMin.UnixNano()*time.Second.Nanoseconds()), timeStep, routei)
+			route := gridMap.Route2PosHexa(float64(timeMapMin.UnixNano())*float64(math.Pow10(-9)), timeStep, routei)
 			jsonPayload, err = msg.MakePathMsg(route)
 			if err != nil {
 				log.Print(err)
@@ -183,14 +185,18 @@ func routing(rcd *cav.DestinationRequest) {
 			timeRobotMap = gridMap.UpdateStep(timeRobotMap, updateStep)
 			addTime := time.Duration(int64(float64(updateStep)*timeStep*math.Pow10(6))) * time.Microsecond
 			timeMapMin = timeMapMin.Add(addTime)
+			log.Print(timeMapMin)
 			log.Printf("elaps %fsecond update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
 
 			csvName := fmt.Sprintf("log/route/%s/%s_%d.csv", now.Format("2006-01-02"), now.Format("01-02-15-4"), rcd.RobotId)
 			go grid.SaveRouteCsv(csvName, route, stops)
 			//go grid.SaveCostMap(grid.TRWCopy(timeRobotMap))
 
-			if robot, ok := robotList[int(rcd.RobotId)]; ok {
-				robot.SetPath(routei)
+			if rob, ok := robotList[int(rcd.RobotId)]; ok {
+				rob.SetPath(routei)
+			} else {
+				robotList[int(rcd.RobotId)] = robot.NewRobot(int(rcd.RobotId), robotRadius)
+				robotList[int(rcd.RobotId)].SetPath(routei)
 			}
 
 			if *vizroute {
