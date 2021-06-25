@@ -1,0 +1,7 @@
+version: "3" # composeファイルのバージョン
+services: 
+    app: # サービス名
+        build: . # ①ビルドに使うDockerfileの場所
+        tty: true # ②コンテナの永続化
+        volumes:
+            - ./:/go/src/app # ③マウントディレクトリ
