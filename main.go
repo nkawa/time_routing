@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -338,7 +337,6 @@ func subsclibeMqttSupply(client *sxutil.SXServiceClient) {
 		synerex.ReconnectClient(client)
 	}
 }
-
 
 func LoggingSettings(logFile string) {
 	dir := fmt.Sprintf("log/%s", time.Now().Format("2006-01-02"))
