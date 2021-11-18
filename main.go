@@ -33,8 +33,8 @@ import (
 const (
 	closeThresh float64 = 0.85
 
-	mapFile  string = "map/willow_garage_v_edited_obj.pgm"
-	yamlFile string = "map/willow_garage_v_edited2.yaml"
+	mapFile  string = "map/projection_edit.pgm"
+	yamlFile string = "map/projection_edit.yaml"
 )
 
 var (
@@ -48,7 +48,7 @@ var (
 	vizroute    = flag.Bool("visualize", false, "whether visualize route")
 	mqttsrv     = flag.String("mqtt", "localhost", "MQTT Broker address")
 
-	
+
 	mapMetaUpdate               = false
 	mapMeta       *grid.MapMeta = nil
 	gridMap       *grid.GridMap = nil
