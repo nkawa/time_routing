@@ -18,6 +18,7 @@ import (
 	"github.com/fukurin00/geo_routing_provider/synerex"
 	"github.com/fukurin00/glot"
 
+
 	cav "github.com/synerex/proto_cav"
 	api "github.com/synerex/synerex_api"
 	sxutil "github.com/synerex/synerex_sxutil"
@@ -39,6 +40,7 @@ const (
 var (
 	mode Mode = ASTAR3DHEXA
 
+	// runtime parameter
 	robotsize   = flag.Float64("robotSize", 0.41, "robot radius")
 	robotVel    = flag.Float64("robotVel", 0.3, "robot velocity")
 	robotRotVel = flag.Float64("robotRotVel", 0.5, "robot rotation velocity")
@@ -46,6 +48,7 @@ var (
 	vizroute    = flag.Bool("visualize", false, "whether visualize route")
 	mqttsrv     = flag.String("mqtt", "localhost", "MQTT Broker address")
 
+	
 	mapMetaUpdate               = false
 	mapMeta       *grid.MapMeta = nil
 	gridMap       *grid.GridMap = nil
