@@ -16,6 +16,7 @@ import (
 	"github.com/fukurin00/geo_routing_provider/robot"
 	grid "github.com/fukurin00/geo_routing_provider/routing"
 	"github.com/fukurin00/geo_routing_provider/synerex"
+	ros "github.com/fukurin00/go_ros_msg"
 
 	cav "github.com/synerex/proto_cav"
 	api "github.com/synerex/synerex_api"
@@ -116,34 +117,30 @@ func routing(rcd *cav.DestinationRequest) {
 		isa, isb := gridMap.Pos2IndHexa(float64(rcd.Current.X), float64(rcd.Current.Y))
 		iga, igb := gridMap.Pos2IndHexa(float64(rcd.Destination.X), float64(rcd.Destination.Y))
 
-		// if val, ok := robotList[int(rcd.RobotId)]; ok {
-		// 	val.SetDest(ros.Point{X: float64(rcd.Destination.X), Y: float64(rcd.Destination.Y)})
-		// }
+		if val, ok := robotList[int(rcd.RobotId)]; ok {
+			val.SetDest(ros.Point{X: float64(rcd.Destination.X), Y: float64(rcd.Destination.Y)})
+		}
 
-		// get other robots map
-		// var otherCount int = 0
-		// var isFirst bool = false
-		// others := make(map[grid.Index]bool)
-		// for id, robot := range robotList {
-		// 	if id == int(rcd.RobotId) {
-		// 		continue
-		// 	} else {
-		// 		if !robot.HavePath {
-		// 			otherCount += 1
-		// 			ia, ib := gridMap.Pos2IndHexa(robot.Pos.X, robot.Pos.Y)
-		// 			others[grid.NewIndex(ia, ib)] = true
-		// 			if aroundCell >= 2 {
-		// 				for _, an := range grid.Around {
-		// 					others[grid.NewIndex(ia+an[0], ib+an[1])] = true
-		// 				}
-		// 			}
-		// 		}
-		// 	}
-		// }
-		// log.Printf("robot is %d not have path robot is %d", len(robotList), otherCount)
-		// if otherCount >= len(robotList)-1 {
-		// 	isFirst = true
-		// }
+		// 止まってるロボットの位置取得
+		var otherCount int = 0
+		others := make(map[grid.Index]bool)
+		for id, robot := range robotList {
+			if id == int(rcd.RobotId) {
+				continue
+			} else {
+				if !robot.HavePath {
+					otherCount += 1
+					ia, ib := gridMap.Pos2IndHexa(robot.Pos.X, robot.Pos.Y)
+					others[grid.NewIndex(ia, ib)] = true
+					if aroundCell >= 2 {
+						for _, an := range grid.Around {
+							others[grid.NewIndex(ia+an[0], ib+an[1])] = true
+						}
+					}
+				}
+			}
+		}
+		log.Printf("robot is %d not have path robot is %d", len(robotList), otherCount)
 
 		// update robot map
 		now := time.Now()
@@ -156,7 +153,7 @@ func routing(rcd *cav.DestinationRequest) {
 		log.Printf("elaps %fseconds update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
 
 		//planning
-		routei, stops, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others, isFirst)
+		routei, stops, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
 
 		if err != nil {
 			log.Print(err)

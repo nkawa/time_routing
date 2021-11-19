@@ -13,11 +13,6 @@ type Index int64
 const HASH int64 = 100000
 const HASH2 int64 = HASH * HASH
 
-// type Index struct {
-// 	X int
-// 	Y int
-// }
-
 func newIndex(x, y int) Index {
 	n := int64(x) + int64(y)*HASH
 	return Index(n)
@@ -34,12 +29,6 @@ func nodeIndex(n *Node) Index {
 }
 
 type IndexT int64
-
-// type IndexT struct {
-// 	X int
-// 	Y int
-// 	T int
-// }
 
 func nodeIndexT(n *Node) IndexT {
 	i := IndexT(int64(n.XId) + int64(n.YId)*HASH + int64(n.T)*HASH2)
@@ -67,8 +56,9 @@ func (m GridMap) Plan(sx, sy, gx, gy int, TRW TimeRobotMap) (route [][3]int, oer
 		oerr = errors.New("path planning error: start point is not verified")
 		return nil, oerr
 	}
-	start := &Node{T: 0, XId: sx, YId: sy, Cost: 0, Parent: nil}
-	goal := &Node{T: 0, XId: gx, YId: gy, Cost: 0, Parent: nil}
+
+	start := &Node{T: 0, XId: sx, YId: sy, G: 0, Parent: nil}
+	goal := &Node{T: 0, XId: gx, YId: gy, G: 0, Parent: nil}
 
 	openSet := make(map[IndexT]*Node)
 
@@ -95,7 +85,7 @@ func (m GridMap) Plan(sx, sy, gx, gy int, TRW TimeRobotMap) (route [][3]int, oer
 		minTime = 99999999999999999
 		var minKey IndexT
 		for key, val := range openSet {
-			calCost := val.Cost + heuristic(goal, val)
+			calCost := val.G + val.S + heuristic(goal, val)
 			if calCost < minCost {
 				minCost = calCost
 				minKey = key
@@ -105,12 +95,11 @@ func (m GridMap) Plan(sx, sy, gx, gy int, TRW TimeRobotMap) (route [][3]int, oer
 			}
 		}
 		current = openSet[minKey]
-		// fmt.Print(current.T, current.XId, current.YId, current.Cost, ",")
 
 		if current.XId == gx && current.YId == gy {
 			log.Print("find goal")
 			goal.Parent = current.Parent
-			goal.Cost = current.Cost
+			goal.F = current.F
 			goal.T = current.T
 			elaps := time.Since(startTime).Seconds()
 			log.Printf("planning (%f, %f) to (%f, %f) takes %f seconds, count is %d",
@@ -121,7 +110,7 @@ func (m GridMap) Plan(sx, sy, gx, gy int, TRW TimeRobotMap) (route [][3]int, oer
 				elaps,
 				count,
 			)
-			routei, _, _ := m.finalPath(goal, closeSetT)
+			routei := m.finalPath(goal, closeSetT)
 			return routei, nil
 		}
 
@@ -135,7 +124,7 @@ func (m GridMap) Plan(sx, sy, gx, gy int, TRW TimeRobotMap) (route [][3]int, oer
 			ind := nodeIndex(an)
 
 			if _, ok := closeSet[ind]; ok {
-				if an.Parent.XId != an.XId || an.Parent.YId != an.YId {
+				if an.Parent.XId != an.XId || an.Parent.YId != an.YId { // not allow to passing same node other than stop
 					continue
 				}
 			}
@@ -147,22 +136,16 @@ func (m GridMap) Plan(sx, sy, gx, gy int, TRW TimeRobotMap) (route [][3]int, oer
 	}
 }
 
-func (m GridMap) finalPath(goal *Node, closeSet map[IndexT]*Node) (route [][3]int, stops []int, stopCount int) {
-	stopCount = 0
+func (m GridMap) finalPath(goal *Node, closeSet map[IndexT]*Node) (route [][3]int) {
 	route = append(route, [3]int{goal.T, goal.XId, goal.YId})
-	stops = append(stops, goal.StopCount)
 
 	parent := goal.Parent
 	for parent != nil {
 		n := closeSet[nodeIndexT(parent)]
 		route = append([][3]int{{n.T, n.XId, n.YId}}, route...)
-		stops = append([]int{n.StopCount}, stops...)
 		parent = n.Parent
-		if n.StopCount > 0 {
-			stopCount += 1
-		}
 	}
-	return route, stops, stopCount
+	return route
 }
 
 func (g GridMap) Route2Pos(minT float64, route [][3]int) [][3]float64 {
@@ -183,27 +166,30 @@ type Node struct {
 	XId int `json:"x"`
 	YId int `json:"y"`
 
-	Cost      float64 `json:"cost"`
-	StopCount int
+	G float64 `json:"g"` // step cost
+	F float64 `json:"f"` // cost
+	S float64 `json:"s"` // stop cost
 
 	Parent *Node
 }
 
-func (s *Node) NewNode(t, x, y int, cost float64) *Node {
+func (p *Node) NewNode(t, x, y int, g, s float64) *Node {
 	n := new(Node)
 	n.T = t
 	n.XId = x
 	n.YId = y
-	n.Parent = s
-	n.Cost = cost
-	n.StopCount = 0
+	n.Parent = p
+	n.G = g
+	n.S = s
+	n.F = g + s
+
 	return n
 }
 
 func (n *Node) Around(g *GridMap, minTime int, TRW TimeRobotMap) []*Node {
 	// time, x, y, cost
 	motion := [9][4]float64{
-		{1.0, 0.0, 0.0, 2.0}, //stay 要修正
+		{1.0, 0.0, 0.0, 0.0}, //stay 要修正
 		{0.0, 1.0, 0.0, 1.0},
 		{0.0, 0.0, 1.0, 1.0},
 		{0.0, -1.0, 0.0, 1.0},
@@ -215,12 +201,10 @@ func (n *Node) Around(g *GridMap, minTime int, TRW TimeRobotMap) []*Node {
 	}
 	var around []*Node
 	for _, m := range motion {
-		// if i == 0 {
-		// 	continue
-		// }
 		aX := n.XId + int(m[1])
 		aY := n.YId + int(m[2])
-		aT := n.T + int(m[0]) + 1
+		aT := n.T + 1
+
 		if aT >= g.MaxT {
 			continue
 		}
@@ -243,14 +227,16 @@ func (n *Node) Around(g *GridMap, minTime int, TRW TimeRobotMap) []*Node {
 			continue
 		}
 
-		node := n.NewNode(aT, aX, aY, n.Cost+m[3]) //要修正
+		node := n.NewNode(aT, aX, aY, n.G+m[3], n.S+m[0])
 		around = append(around, node)
 	}
 	return around
 }
 
 func heuristic(n1, n2 *Node) float64 {
+	// n1 is goal
 	w := 1.0
 	d := w * math.Hypot(float64(n1.XId)-float64(n2.XId), float64(n1.YId)-float64(n2.YId))
+	// d := w * math.Sqrt(math.Pow(float64(n1.XId)-float64(n2.XId), 2)+math.Pow(float64(n1.YId)-float64(n2.YId), 2)+math.Pow(n2.S, 2))
 	return d
 }

@@ -115,7 +115,7 @@ type logOpt struct {
 	StopCount int
 }
 
-func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool, isFirst bool) (route [][3]int, stops []int, oerr error) {
+func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool) (route [][3]int, stops []int, oerr error) {
 	startTime := time.Now()
 	//var logData []logOpt
 
@@ -124,35 +124,29 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 	gx := int(getXAB(float64(ga), float64(gb)))
 	gy := int(getYAB(float64(ga), float64(gb)))
 
-	//timeStep := m.Resolution/v + 2*math.Pi/3/w // L/v + 2pi/3w  120度回転したときの一番かかる時間
-	log.Printf("start planning robot%d (%f, %f) to (%f, %f), first is %t",
+	log.Printf("start planning robot%d (%f, %f) to (%f, %f)",
 		id,
 		m.MapOrigin.X+float64(sx)*m.Resolution,
 		m.MapOrigin.Y+float64(sy)*m.Resolution,
 		m.MapOrigin.X+float64(gx)*m.Resolution,
 		m.MapOrigin.Y+float64(gy)*m.Resolution,
-		isFirst,
 	)
 
 	if m.ObjectMap[newIndex(ga, gb)] {
 		oerr = fmt.Errorf("robot%d path planning error: goal is not verified", id)
 		return nil, nil, oerr
 	}
-	// if m.ObjectMap[newIndex(sa, sb)] {
-	// 	oerr = fmt.Errorf("robot%d path planning error: start point is not verified", id)
-	// 	return nil, oerr
-	// }
-	start := &Node{T: 0, XId: sa, YId: sb, Cost: 0, Parent: nil}
-	goal := &Node{T: 0, XId: ga, YId: gb, Cost: 0, Parent: nil}
 
-	openSetT := make(map[IndexT]*Node)
-	//openSet := make(map[Index]*Node)
+	// init start,goal nodes
+	start := &Node{T: 0, XId: sa, YId: sb, G: 0, Parent: nil}
+	goal := &Node{T: 0, XId: ga, YId: gb, G: 0, Parent: nil}
+
+	openSetT := make(map[IndexT]*Node) // once passed node
 
 	closeSet := make(map[Index]*Node)
 	closeSetT := make(map[IndexT]*Node)
 
 	openSetT[nodeIndexT(start)] = start
-	//openSet[nodeIndex(start)] = start
 
 	count := 0
 	current := &Node{T: 0}
@@ -163,16 +157,11 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		count += 1
 		// failure
 		if len(openSetT) == 0 {
-			// elaps := time.Since(startTime).Seconds()
-			// log.Print(current.T, current.XId, current.YId, count, elaps)
 			oerr = fmt.Errorf("path planning error: open set is empty, count %d", count)
-			//bytes, _ := json.Marshal(logData)
-			// now := time.Now()
-			// ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
 			return nil, nil, oerr
 		}
 
-		// 20秒以上で諦める
+		// 30秒以上で諦める
 		if time.Since(startTime).Seconds() > 30 {
 			a := m.Origin.X + float64(current.XId)*m.Resolution
 			b := m.Origin.Y + float64(current.YId)*m.Resolution
@@ -189,7 +178,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			now := time.Now()
 			ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
 			oerr = errors.New("path planning timeouted")
-			routei, _, _ := m.finalPath(goal, closeSetT)
+			routei := m.finalPath(goal, closeSetT)
 			return routei, nil, oerr
 		}
 
@@ -198,7 +187,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		minTime = 999999999999999999
 		var minKey IndexT
 		for key, val := range openSetT {
-			calCost := (val.Cost + heuristicHexa(goal, val)/v) / 100 // length to goal / vel
+			calCost := val.G + val.S + heuristicHexa(goal, val) // length to goal
 			if calCost < minCost {
 				minCost = calCost
 				minKey = key
@@ -212,22 +201,17 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			log.Printf("Error, current is nil. openset is %d minKey is %d, cost is %f", len(openSetT), minKey, minCost)
 		}
 
-		logData = append(logData, logOpt{current.XId, current.YId, current.T, current.Cost, current.StopCount})
+		logData = append(logData, logOpt{current.XId, current.YId, current.T, current.F, int(current.S)})
 
 		// find Goal
 		if current.XId == ga && current.YId == gb {
 			log.Print("find goal")
-			// bytes, jerr := json.MarshalIndent(logData, "", " ")
-			// if jerr != nil {
-			// 	log.Print(jerr)
-			// }
-			// now := time.Now()
-			// ioutil.WriteFile(fmt.Sprintf("log/route/%s/route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
+
 			goal.Parent = current.Parent
-			goal.Cost = current.Cost
+			goal.F = current.F
 			goal.T = current.T
 			elaps := time.Since(startTime).Seconds()
-			route, stops, scount := m.finalPath(goal, closeSetT)
+			route := m.finalPath(goal, closeSetT)
 			log.Printf("robot%d planning took %f seconds, count: %d, length: %d",
 				id,
 				// m.MapOrigin.X+float64(sx)*m.Resolution,
@@ -238,7 +222,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 				count,
 				len(route),
 			)
-			log.Printf("it has %d length, %f seconds, %d stop", len(route), float64(len(route))*timeStep, scount)
+			log.Printf("it has %d length, %f seconds", len(route), float64(len(route))*timeStep)
 			return route, stops, nil
 		}
 
@@ -249,20 +233,11 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		around := current.AroundHexa(&m, minTime, v, w, timeStep, TRW, otherRobot)
 		for _, an := range around {
 			indT := nodeIndexT(an)
-			//ind := nodeIndex(an)
+			ind := nodeIndex(an)
 
 			// すでに通った道を戻るのはだめ
-			if _, ok := closeSetT[indT]; ok {
-				// ただし、止まる場合を除く
-				if an.Parent.XId != an.XId || an.Parent.YId != an.YId {
-					continue
-				}
-				continue
-			}
-
-			//最初の場合は普通の2dとする
-			if isFirst {
-				if _, ok := closeSet[nodeIndex(an)]; ok {
+			if _, ok := closeSet[ind]; ok {
+				if an.Parent.XId != an.XId || an.Parent.YId != an.YId { // ただし、止まる場合を除く
 					continue
 				}
 			}
@@ -290,37 +265,34 @@ func (g GridMap) Route2PosHexa(minT float64, timeStep float64, route [][3]int) [
 }
 
 func (n Node) AroundHexa(g *GridMap, minTime int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool) []*Node {
-	cost1 := g.Resolution/v + 2*math.Pi/(3*w)
 	// [time, x, y, cost]
 	motion := [][4]float64{
-		{0.0, 0.0, 0.0, timeStep},
-		{0.0, 1.0, 0.0, cost1},
-		{0.0, 0.0, 1.0, cost1},
-		{0.0, -1.0, 1.0, cost1},
-		{0.0, -1.0, 0.0, cost1},
-		{0.0, 0.0, -1.0, cost1},
-		{0.0, 1.0, -1.0, cost1},
+		{1.0, 0.0, 0.0, 0.0},
+		{0.0, 1.0, 0.0, 1.0},
+		{0.0, 0.0, 1.0, 1.0},
+		{0.0, -1.0, 1.0, 1.0},
+		{0.0, -1.0, 0.0, 1.0},
+		{0.0, 0.0, -1.0, 1.0},
+		{0.0, 1.0, -1.0, 1.0},
 	}
 	if Mode == 2 {
-		//cost2 := math.Sqrt(3)*cost1
-		cost2 := 2 * cost1
 		motion2 := [][4]float64{
 			//1個奥
-			{1.0, 1.0, 1.0, cost2},
-			{1.0, 2.0, -1.0, cost2},
-			{1.0, -1.0, -1.0, cost2},
-			{1.0, -2.0, 1.0, cost2},
-			{1.0, 1.0, -2.0, cost2},
-			{1.0, -1.0, 2.0, cost2},
+			{1.0, 1.0, 1.0, 2.0},
+			{1.0, 2.0, -1.0, 2.0},
+			{1.0, -1.0, -1.0, 2.0},
+			{1.0, -2.0, 1.0, 2.0},
+			{1.0, 1.0, -2.0, 2.0},
+			{1.0, -1.0, 2.0, 2.0},
 		}
 		motion = append(motion, motion2...)
 	}
 
 	var around []*Node
-	for i, m := range motion {
+	for _, m := range motion {
 		aX := n.XId + int(m[1])
 		aY := n.YId + int(m[2])
-		aT := n.T + int(m[0]) + 1
+		aT := n.T + 1
 
 		//時間コストマップ外の時間は外す
 		if aT >= g.MaxT {
@@ -354,16 +326,11 @@ func (n Node) AroundHexa(g *GridMap, minTime int, v, w, timeStep float64, TRW Ti
 			}
 		}
 
-		var newCost = n.Cost + m[3]
-
-		node := n.NewNode(aT, aX, aY, newCost)
+		node := n.NewNode(aT, aX, aY, n.G+m[3], n.S+0.1*m[0])
 
 		// MaxStopCount以上止まりすぎはだめ
-		if i == 0 {
-			node.StopCount = n.StopCount + 1
-			if node.StopCount > MaxStopCount {
-				continue
-			}
+		if node.S > MaxS {
+			continue
 		}
 
 		around = append(around, node)
