@@ -59,7 +59,6 @@ var (
 	clt mqtt.Client
 
 	msgCh   chan mqtt.Message
-	vizCh   chan vizOpt
 	routeCh chan *cav.DestinationRequest
 
 	timeStep         float64 //計算に使う1stepの秒数
@@ -72,7 +71,6 @@ var (
 
 func init() {
 	msgCh = make(chan mqtt.Message)
-	vizCh = make(chan vizOpt)
 	routeCh = make(chan *cav.DestinationRequest)
 
 	robotList = make(map[int]*robot.RobotStatus)
@@ -206,10 +204,6 @@ func routing(rcd *cav.DestinationRequest) {
 			log.Print(err)
 		} else {
 			route := gridMap.Route2Pos(0, routei)
-			if *vizroute {
-				vOpt := vizOpt{id: int(rcd.RobotId), route: route}
-				vizCh <- vOpt
-			}
 			jsonPayload, err = msg.MakePathMsg(route)
 			if err != nil {
 				log.Print(err)
@@ -264,18 +258,6 @@ func routeCallback(client *sxutil.SXServiceClient, sp *api.Supply) {
 	log.Printf("receive dest request robot%d", rcd.RobotId)
 	routeCh <- rcd
 	//go routing(rcd)
-}
-
-func vizualizeHandler() {
-	counter := make(map[int]int)
-	for {
-		opt := <-vizCh
-		if val, ok := counter[opt.id]; ok {
-			counter[opt.id] = val + 1
-		} else {
-			counter[opt.id] = 1
-		}
-	}
 }
 
 func subsclibeRouteSupply(client *sxutil.SXServiceClient) {
