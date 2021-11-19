@@ -24,7 +24,6 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	astar "github.com/fukurin00/astar_golang"
-	ros "github.com/fukurin00/go_ros_msg"
 	"github.com/synerex/proto_mqtt"
 )
 
@@ -112,37 +111,40 @@ func routing(rcd *cav.DestinationRequest) {
 			log.Print("not receive gridMap yet ...")
 			return
 		}
+
+		// start, goal node
 		isa, isb := gridMap.Pos2IndHexa(float64(rcd.Current.X), float64(rcd.Current.Y))
 		iga, igb := gridMap.Pos2IndHexa(float64(rcd.Destination.X), float64(rcd.Destination.Y))
 
-		if val, ok := robotList[int(rcd.RobotId)]; ok {
-			val.SetDest(ros.Point{X: float64(rcd.Destination.X), Y: float64(rcd.Destination.Y)})
-		}
+		// if val, ok := robotList[int(rcd.RobotId)]; ok {
+		// 	val.SetDest(ros.Point{X: float64(rcd.Destination.X), Y: float64(rcd.Destination.Y)})
+		// }
 
 		// get other robots map
-		var otherCount int = 0
-		var isFirst bool = false
-		others := make(map[grid.Index]bool)
-		for id, robot := range robotList {
-			if id == int(rcd.RobotId) {
-				continue
-			} else {
-				if !robot.HavePath {
-					otherCount += 1
-					ia, ib := gridMap.Pos2IndHexa(robot.Pos.X, robot.Pos.Y)
-					others[grid.NewIndex(ia, ib)] = true
-					if aroundCell >= 2 {
-						for _, an := range grid.Around {
-							others[grid.NewIndex(ia+an[0], ib+an[1])] = true
-						}
-					}
-				}
-			}
-		}
-		log.Printf("robot is %d not have path robot is %d", len(robotList), otherCount)
-		if otherCount >= len(robotList)-1 {
-			isFirst = true
-		}
+		// var otherCount int = 0
+		// var isFirst bool = false
+		// others := make(map[grid.Index]bool)
+		// for id, robot := range robotList {
+		// 	if id == int(rcd.RobotId) {
+		// 		continue
+		// 	} else {
+		// 		if !robot.HavePath {
+		// 			otherCount += 1
+		// 			ia, ib := gridMap.Pos2IndHexa(robot.Pos.X, robot.Pos.Y)
+		// 			others[grid.NewIndex(ia, ib)] = true
+		// 			if aroundCell >= 2 {
+		// 				for _, an := range grid.Around {
+		// 					others[grid.NewIndex(ia+an[0], ib+an[1])] = true
+		// 				}
+		// 			}
+		// 		}
+		// 	}
+		// }
+		// log.Printf("robot is %d not have path robot is %d", len(robotList), otherCount)
+		// if otherCount >= len(robotList)-1 {
+		// 	isFirst = true
+		// }
+
 		// update robot map
 		now := time.Now()
 		elap := now.Sub(timeMapMin).Seconds()
@@ -153,16 +155,21 @@ func routing(rcd *cav.DestinationRequest) {
 		log.Print(timeMapMin)
 		log.Printf("elaps %fseconds update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
 
+		//planning
 		routei, stops, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others, isFirst)
+
 		if err != nil {
 			log.Print(err)
 		} else {
+			// send path
 			route := gridMap.Route2PosHexa(float64(timeMapMin.UnixNano())*float64(math.Pow10(-9)), timeStep, routei)
 			jsonPayload, err = msg.MakePathMsg(route)
 			if err != nil {
 				log.Print(err)
 			}
 			sendPath(jsonPayload, int(rcd.RobotId))
+
+			// update
 			gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, aroundCell)
 			now := time.Now()
 			elap := now.Sub(timeMapMin).Seconds()
@@ -173,6 +180,7 @@ func routing(rcd *cav.DestinationRequest) {
 			log.Print(timeMapMin)
 			log.Printf("elaps %fsecond update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
 
+			// save route file
 			csvName := fmt.Sprintf("log/route/%s/%s_%d.csv", now.Format("2006-01-02"), now.Format("01-02-15-4"), rcd.RobotId)
 			go grid.SaveRouteCsv(csvName, route, stops)
 			//go grid.SaveCostMap(grid.TRWCopy(timeRobotMap))

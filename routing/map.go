@@ -87,19 +87,12 @@ func ReadStaticMapImage(yamlFile, mapFile string, closeThreth float64) (*MapMeta
 
 func (m MapMeta) GetObjectMap() [][2]float64 {
 	var objMap [][2]float64
-	insideWall := false
 	for i, pixel := range m.Data {
-
 		if pixel >= 90 {
-			if insideWall {
-				continue
-			}
 			x := float64(i%m.W)*(m.Reso) + (m.Origin.X)
 			y := float64(i/m.W)*(m.Reso) + (m.Origin.Y)
 			var oPoint = [2]float64{x, y}
 			objMap = append(objMap, oPoint)
-		} else {
-			insideWall = false
 		}
 	}
 	return objMap
