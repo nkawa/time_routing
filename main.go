@@ -43,7 +43,6 @@ var (
 	robotVel    = flag.Float64("robotVel", 0.3, "robot velocity")
 	robotRotVel = flag.Float64("robotRotVel", 0.5, "robot rotation velocity")
 	resolution  = flag.Float64("reso", 0.28, "path planning resolution")
-	vizroute    = flag.Bool("visualize", false, "whether visualize route")
 	mqttsrv     = flag.String("mqtt", "localhost", "MQTT Broker address")
 
 	mapMetaUpdate               = false
@@ -84,11 +83,6 @@ func init() {
 	//timeStep = reso/robotVelocity + 2*math.Pi*robotRadius/3/robotRotVelocity // L/v + 2pi/3w  120度回転したときの一番かかる時間
 	//timeStep = float64(math.Ceil(reso/robotVelocity + 2*math.Pi*robotRadius/3/robotRotVelocity)) //切り上げ整数
 	aroundCell = grid.GetAoundCell(robotRadius, reso)
-}
-
-type vizOpt struct {
-	id    int
-	route [][3]float64
 }
 
 type Mode int
@@ -324,7 +318,7 @@ func LoggingSettings(logFile string) {
 func SetupStaticMap() {
 	mapMeta, err := grid.ReadStaticMapImage(yamlFile, mapFile, closeThresh)
 	if err != nil {
-		log.Print("read map file errore: ", err)
+		log.Print("read map file error: ", err)
 	}
 	objMap := mapMeta.GetObjectMap()
 	reso := *resolution
