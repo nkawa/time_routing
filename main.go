@@ -16,8 +16,6 @@ import (
 	"github.com/fukurin00/geo_routing_provider/robot"
 	grid "github.com/fukurin00/geo_routing_provider/routing"
 	"github.com/fukurin00/geo_routing_provider/synerex"
-	"github.com/fukurin00/glot"
-
 
 	cav "github.com/synerex/proto_cav"
 	api "github.com/synerex/synerex_api"
@@ -48,7 +46,6 @@ var (
 	vizroute    = flag.Bool("visualize", false, "whether visualize route")
 	mqttsrv     = flag.String("mqtt", "localhost", "MQTT Broker address")
 
-
 	mapMetaUpdate               = false
 	mapMeta       *grid.MapMeta = nil
 	gridMap       *grid.GridMap = nil
@@ -64,10 +61,6 @@ var (
 	msgCh   chan mqtt.Message
 	vizCh   chan vizOpt
 	routeCh chan *cav.DestinationRequest
-
-	// for vizualization
-	plot2d *glot.Plot
-	plot3d *glot.Plot
 
 	timeStep         float64 //計算に使う1stepの秒数
 	reso             float64
@@ -198,11 +191,6 @@ func routing(rcd *cav.DestinationRequest) {
 				robotList[int(rcd.RobotId)] = robot.NewRobot(int(rcd.RobotId), robotRadius)
 				robotList[int(rcd.RobotId)].SetPath(routei)
 			}
-
-			if *vizroute {
-				vOpt := vizOpt{id: int(rcd.RobotId), route: route}
-				vizCh <- vOpt
-			}
 		}
 
 	} else if mode == ASTAR3D {
@@ -287,16 +275,6 @@ func vizualizeHandler() {
 		} else {
 			counter[opt.id] = 1
 		}
-		plot2d.AddPointGroup(fmt.Sprintf("route%d_%d", opt.id, counter[opt.id]), "points", grid.Convert32DPoint(opt.route))
-		plot3d.AddPointGroup(fmt.Sprintf("route%d_%d", opt.id, counter[opt.id]), "points", grid.Convert3DPoint(opt.route))
-
-		// if counter[opt.id] >= 2 {
-		// 	plot2d.RemovePointGroup(fmt.Sprintf("route%d_%d", opt.id, counter[opt.id]-1))
-		// 	plot3d.RemovePointGroup(fmt.Sprintf("route%d_%d", opt.id, counter[opt.id]-1))
-		// }
-
-		plot2d.SavePlot(fmt.Sprintf("route/robot%d_%d_route2D.png", opt.id, counter[opt.id]))
-		plot3d.SavePlot(fmt.Sprintf("route/robot%d_%d_route3D.png", opt.id, counter[opt.id]))
 	}
 }
 
@@ -369,25 +347,15 @@ func SetupStaticMap() {
 	objMap := mapMeta.GetObjectMap()
 	reso := *resolution
 	if mode == ASTAR2D {
-		plot2d.AddPointGroup("map", "dots", grid.Convert2DPoint(objMap))
-		plot2d.SavePlot("map/raw_static_map.png")
 		astarPlanner = astar.NewAstar(objMap, robotRadius, reso)
 		log.Print("load astar obj map")
 	} else if mode == ASTAR3D {
 		gridMap = grid.NewGridMapReso(*mapMeta, robotRadius, reso, objMap)
 		timeRobotMap = grid.NewTRW(gridMap.MaxT, gridMap.Width, gridMap.Height)
-		plot2d.AddPointGroup("objmap", "dots", gridMap.ConvertObjMap2Point())
-		plot2d.SavePlot("map/static_obj_map.png")
-		plot3d.AddPointGroup("objmap", "dots", gridMap.ConvertObjMap3Point())
 	} else if mode == ASTAR3DHEXA {
 		gridMap = grid.NewGridMapResoHexa(*mapMeta, robotRadius, reso, objMap)
 		timeRobotMap = grid.NewTRW(gridMap.MaxT, gridMap.Width, gridMap.Height)
 		timeMapMin = time.Now()
-		if *vizroute {
-			plot2d.AddPointGroup("objmap", "dots", gridMap.ConvertObjMap2PointHexa())
-			plot2d.SavePlot("map/static_obj_map_hexa.png")
-		}
-		// plot3d.AddPointGroup("objmap", "dots", gridMap.ConvertObjMap3PointHexa())
 	}
 }
 
@@ -404,11 +372,6 @@ func main() {
 	// Synerex Configuration
 	synerex.SetupSynerex()
 
-	// visualization configuration
-	if *vizroute {
-		plot2d, _ = glot.NewPlot(2, false, false)
-		plot3d, _ = glot.NewPlot(3, false, false)
-	}
 	// load static map data
 	SetupStaticMap()
 
@@ -422,9 +385,7 @@ func main() {
 	go subsclibeMqttSupply(synerex.MqttClient)
 
 	//go updateTimeObjMapHandler()
-	if *vizroute {
-		go vizualizeHandler()
-	}
+
 	wg.Add(1)
 	wg.Wait()
 }
