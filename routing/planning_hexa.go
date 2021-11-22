@@ -249,19 +249,21 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 	}
 }
 
-func (g GridMap) Route2PosHexa(minT float64, timeStep float64, route [][3]int) [][3]float64 {
+func (g GridMap) Route2PosHexa(minT time.Time, timeStep float64, route [][3]int) ([]time.Time, [][2]float64) {
 	l := len(route)
-	fRoute := make([][3]float64, l)
+	fRoute := make([][2]float64, l)
+	fTime := make([]time.Time, l)
 
 	for i, r := range route {
 		a, b := g.Ind2Pos(r[1], r[2])
 		x := getXAB(a, b)
 		y := getYAB(a, b)
-		t := minT + float64(r[0])*timeStep
-		p := [3]float64{t, x, y}
+		t := minT.Add(time.Duration(float64(r[0])*timeStep) * time.Second)
+		p := [2]float64{x, y}
 		fRoute[i] = p
+		fTime[i] = t
 	}
-	return fRoute
+	return fTime, fRoute
 }
 
 func (n Node) AroundHexa(g *GridMap, minTime int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool) []*Node {

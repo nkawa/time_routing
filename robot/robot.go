@@ -34,7 +34,7 @@ func (r *RobotStatus) SetPos(rcd []byte) {
 		var pos *ros.Pose
 		err := json.Unmarshal(rcd, pos)
 		if err != nil {
-			log.Print("[Error/robot]cannot unmarshal pos message:"err)
+			log.Print("[Error/robot]cannot unmarshal pos message:", err)
 		} else {
 			r.Pos = pos.Position
 			r.LastPosUpdate = time.Now()

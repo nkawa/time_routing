@@ -85,6 +85,8 @@ github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5
 github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/synerex/proto_cav v0.0.3 h1:7xeHeKdEULrCNhYMRM0n4zdwbV7do1e6dhNdSvQ7gag=
 github.com/synerex/proto_cav v0.0.3/go.mod h1:H4sMxIJvHTpeALtvZiS+yDgWEHyvx5SU7JZxQz1DDK8=
+github.com/synerex/proto_cav v0.0.4 h1:78WHEGjTsGJ6HUMhLa8F54Vecziasevif+RgBJvYDHQ=
+github.com/synerex/proto_cav v0.0.4/go.mod h1:H4sMxIJvHTpeALtvZiS+yDgWEHyvx5SU7JZxQz1DDK8=
 github.com/synerex/proto_json v0.0.1/go.mod h1:aUvnuTMwolfhJakexaca1lmOVAhQuScR2SOemD9j1NQ=
 github.com/synerex/proto_mqtt v0.1.2 h1:8pkzDum9vjJ+XYREo7KUahrhAufAEK8cjPQG1APt9F4=
 github.com/synerex/proto_mqtt v0.1.2/go.mod h1:LaUwcISaQ+j6nXUaa08io5BQdxf9Gw0NLSBDMijnxqk=

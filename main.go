@@ -8,11 +8,9 @@ import (
 	"log"
 	"math"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
-	ros "github.com/fukurin00/go_ros_msg"
 	"github.com/fukurin00/time_routing/msg"
 	"github.com/fukurin00/time_routing/robot"
 	grid "github.com/fukurin00/time_routing/routing"
@@ -26,6 +24,8 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	astar "github.com/fukurin00/astar_golang"
 	"github.com/synerex/proto_mqtt"
+
+	"github.com/golang/protobuf/ptypes"
 )
 
 const (
@@ -57,7 +57,7 @@ var (
 	clt mqtt.Client
 
 	msgCh   chan mqtt.Message
-	routeCh chan *cav.DestinationRequest
+	routeCh chan *cav.PathRequest
 
 	timeStep         float64 //計算に使う1stepの秒数
 	reso             float64
@@ -69,7 +69,7 @@ var (
 
 func init() {
 	msgCh = make(chan mqtt.Message)
-	routeCh = make(chan *cav.DestinationRequest)
+	routeCh = make(chan *cav.PathRequest)
 
 	robotList = make(map[int]*robot.RobotStatus)
 
@@ -79,8 +79,7 @@ func init() {
 	robotVelocity = *robotVel
 	robotRotVelocity = *robotRotVel
 	timeStep = reso / robotVelocity
-	//timeStep = reso/robotVelocity + 2*math.Pi*robotRadius/3/robotRotVelocity // L/v + 2pi/3w  120度回転したときの一番かかる時間
-	//timeStep = float64(math.Ceil(reso/robotVelocity + 2*math.Pi*robotRadius/3/robotRotVelocity)) //切り上げ整数
+
 	aroundCell = grid.GetAoundCell(robotRadius, reso)
 }
 
@@ -104,7 +103,7 @@ func handleRouting() {
 	}
 }
 
-func routing(rcd *cav.DestinationRequest) {
+func routing(rcd *cav.PathRequest) {
 	var jsonPayload []byte
 	if mode == ASTAR3DHEXA {
 		if gridMap == nil {
@@ -113,33 +112,33 @@ func routing(rcd *cav.DestinationRequest) {
 		}
 
 		// start, goal node
-		isa, isb := gridMap.Pos2IndHexa(float64(rcd.Current.X), float64(rcd.Current.Y))
-		iga, igb := gridMap.Pos2IndHexa(float64(rcd.Destination.X), float64(rcd.Destination.Y))
+		isa, isb := gridMap.Pos2IndHexa(float64(rcd.Start.X), float64(rcd.Start.Y))
+		iga, igb := gridMap.Pos2IndHexa(float64(rcd.Goal.X), float64(rcd.Goal.Y))
 
-		if val, ok := robotList[int(rcd.RobotId)]; ok {
-			val.SetDest(ros.Point{X: float64(rcd.Destination.X), Y: float64(rcd.Destination.Y)})
-		}
+		// if val, ok := robotList[int(rcd.RobotId)]; ok {
+		// 	val.SetDest(ros.Point{X: float64(rcd.Goal.X), Y: float64(rcd.Goal.Y)})
+		// }
 
 		// 止まってるロボットの位置取得
-		var otherCount int = 0
+		// var otherCount int = 0
 		others := make(map[grid.Index]bool)
-		for id, robot := range robotList {
-			if id == int(rcd.RobotId) {
-				continue
-			} else {
-				if !robot.HavePath {
-					otherCount += 1
-					ia, ib := gridMap.Pos2IndHexa(robot.Pos.X, robot.Pos.Y)
-					others[grid.NewIndex(ia, ib)] = true
-					if aroundCell >= 2 {
-						for _, an := range grid.Around {
-							others[grid.NewIndex(ia+an[0], ib+an[1])] = true
-						}
-					}
-				}
-			}
-		}
-		log.Printf("robot is %d not have path robot is %d", len(robotList), otherCount)
+		// for id, robot := range robotList {
+		// 	if id == int(rcd.RobotId) {
+		// 		continue
+		// 	} else {
+		// 		if !robot.HavePath {
+		// 			otherCount += 1
+		// 			ia, ib := gridMap.Pos2IndHexa(robot.Pos.X, robot.Pos.Y)
+		// 			others[grid.NewIndex(ia, ib)] = true
+		// 			if aroundCell >= 2 {
+		// 				for _, an := range grid.Around {
+		// 					others[grid.NewIndex(ia+an[0], ib+an[1])] = true
+		// 				}
+		// 			}
+		// 		}
+		// 	}
+		// }
+		// log.Printf("robot is %d not have path robot is %d", len(robotList), otherCount)
 
 		// update robot map
 		now := time.Now()
@@ -158,12 +157,23 @@ func routing(rcd *cav.DestinationRequest) {
 			log.Print(err)
 		} else {
 			// send path
-			route := gridMap.Route2PosHexa(float64(timeMapMin.UnixNano())*float64(math.Pow10(-9)), timeStep, routei)
-			jsonPayload, err = msg.MakePathMsg(route)
-			if err != nil {
-				log.Print(err)
+			times, route := gridMap.Route2PosHexa(timeMapMin, timeStep, routei)
+
+			path := new(cav.Path)
+			path.RobotId = rcd.RobotId
+			for i := 0; i < len(route); i++ {
+				pP := new(cav.PathPoint)
+				pP.Seq = int64(i)
+				pP.Pose = &cav.Point{X: float32(route[i][0]), Y: float32(route[i][1])}
+				pP.Ts, _ = ptypes.TimestampProto(times[i])
+				path.Path[i] = pP
 			}
-			sendPath(jsonPayload, int(rcd.RobotId))
+
+			// jsonPayload, err = msg.MakePathMsg(route)
+			// if err != nil {
+			// 	log.Print(err)
+			// }
+			// sendPath(jsonPayload, int(rcd.RobotId))
 
 			// update
 			gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, aroundCell)
@@ -178,15 +188,14 @@ func routing(rcd *cav.DestinationRequest) {
 
 			// save route file
 			csvName := fmt.Sprintf("log/route/%s/%s_%d.csv", now.Format("2006-01-02"), now.Format("01-02-15-4"), rcd.RobotId)
-			go grid.SaveRouteCsv(csvName, route, stops)
-			//go grid.SaveCostMap(grid.TRWCopy(timeRobotMap))
+			go grid.SaveRouteCsv(csvName, times, route, stops)
 
-			if rob, ok := robotList[int(rcd.RobotId)]; ok {
-				rob.SetPath(routei)
-			} else {
-				robotList[int(rcd.RobotId)] = robot.NewRobot(int(rcd.RobotId), robotRadius)
-				robotList[int(rcd.RobotId)].SetPath(routei)
-			}
+			// if rob, ok := robotList[int(rcd.RobotId)]; ok {
+			// 	rob.SetPath(routei)
+			// } else {
+			// 	robotList[int(rcd.RobotId)] = robot.NewRobot(int(rcd.RobotId), robotRadius)
+			// 	robotList[int(rcd.RobotId)].SetPath(routei)
+			// }
 		}
 
 	} else if mode == ASTAR3D {
@@ -194,8 +203,8 @@ func routing(rcd *cav.DestinationRequest) {
 			log.Print("not receive gridMap yet ...")
 			return
 		}
-		isx, isy := gridMap.Pos2Ind(float64(rcd.Current.X), float64(rcd.Current.Y))
-		igx, igy := gridMap.Pos2Ind(float64(rcd.Destination.X), float64(rcd.Destination.Y))
+		isx, isy := gridMap.Pos2Ind(float64(rcd.Start.X), float64(rcd.Start.Y))
+		igx, igy := gridMap.Pos2Ind(float64(rcd.Goal.X), float64(rcd.Goal.Y))
 
 		routei, err := gridMap.Plan(isx, isy, igx, igy, grid.TRWCopy(timeRobotMap))
 		if err != nil {
@@ -209,7 +218,7 @@ func routing(rcd *cav.DestinationRequest) {
 			sendPath(jsonPayload, int(rcd.RobotId))
 		}
 	} else if mode == ASTAR2D {
-		route, err := astarPlanner.Plan(float64(rcd.Current.X), float64(rcd.Current.Y), float64(rcd.Destination.X), float64(rcd.Destination.Y))
+		route, err := astarPlanner.Plan(float64(rcd.Start.X), float64(rcd.Start.Y), float64(rcd.Goal.X), float64(rcd.Goal.Y))
 		if err != nil {
 			log.Print(err)
 		} else {
@@ -221,6 +230,25 @@ func routing(rcd *cav.DestinationRequest) {
 		}
 	}
 
+}
+
+func publishPath(d *cav.Path) {
+	out, err := proto.Marshal(d)
+	if err != nil {
+		log.Print(err)
+	}
+	cout := api.Content{Entity: out}
+	smo := sxutil.SupplyOpts{
+		Name:  "SupplyRoute",
+		Cdata: &cout,
+	}
+	_, err = synerex.RouteClient.NotifySupply(&smo)
+	if err != nil {
+		log.Print(err)
+		synerex.ReconnectClient(synerex.RouteClient)
+	} else {
+		log.Printf("publish path robot%d", d.RobotId)
+	}
 }
 
 func sendPath(jsonPayload []byte, id int) {
@@ -248,14 +276,13 @@ func sendPath(jsonPayload []byte, id int) {
 }
 
 func routeCallback(client *sxutil.SXServiceClient, sp *api.Supply) {
-	rcd := &cav.DestinationRequest{}
+	rcd := &cav.PathRequest{}
 	err := proto.Unmarshal(sp.Cdata.Entity, rcd)
 	if err != nil {
 		log.Print(err)
 	}
 	log.Printf("receive dest request robot%d", rcd.RobotId)
 	routeCh <- rcd
-	//go routing(rcd)
 }
 
 func subsclibeRouteSupply(client *sxutil.SXServiceClient) {
@@ -272,22 +299,22 @@ func mqttCallback(client *sxutil.SXServiceClient, sp *api.Supply) {
 		return
 	}
 
-	rcd := &proto_mqtt.MQTTRecord{}
-	err := proto.Unmarshal(sp.Cdata.Entity, rcd)
-	if err != nil {
-		log.Print("mqtt unmarshal error: ", err)
-	} else {
-		if strings.HasPrefix(rcd.Topic, "robot/position/") {
-			var id int
-			fmt.Scanf(rcd.Topic, "robot/position/%d", &id)
-			if val, ok := robotList[id]; ok {
-				val.SetPos(rcd.Record)
-			} else {
-				robotList[id] = robot.NewRobot(id, robotRadius)
-				robotList[id].SetPos(rcd.Record)
-			}
-		}
-	}
+	// rcd := &proto_mqtt.MQTTRecord{}
+	// err := proto.Unmarshal(sp.Cdata.Entity, rcd)
+	// if err != nil {
+	// 	log.Print("mqtt unmarshal error: ", err)
+	// } else {
+	// 	if strings.HasPrefix(rcd.Topic, "robot/position/") {
+	// 		var id int
+	// 		fmt.Scanf(rcd.Topic, "robot/position/%d", &id)
+	// 		if val, ok := robotList[id]; ok {
+	// 			val.SetPos(rcd.Record)
+	// 		} else {
+	// 			robotList[id] = robot.NewRobot(id, robotRadius)
+	// 			robotList[id].SetPos(rcd.Record)
+	// 		}
+	// 	}
+	// }
 
 }
 
@@ -302,6 +329,12 @@ func subsclibeMqttSupply(client *sxutil.SXServiceClient) {
 func LoggingSettings(logFile string) {
 	if _, err := os.Stat("log/"); os.IsNotExist(err) {
 		os.Mkdir("log/", 0777)
+	}
+	if _, err := os.Stat("log/route"); os.IsNotExist(err) {
+		os.Mkdir("log/route", 0777)
+	}
+	if _, err := os.Stat("log/costmap"); os.IsNotExist(err) {
+		os.Mkdir("log/costmap", 0777)
 	}
 	dir := fmt.Sprintf("log/%s", time.Now().Format("2006-01-02"))
 	if _, err := os.Stat(dir); os.IsNotExist(err) {

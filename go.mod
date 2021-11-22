@@ -12,11 +12,12 @@ require (
 	github.com/fukurin00/glot v0.0.0-20210503075557-4ec67d73bcd1
 	github.com/fukurin00/go_ros_msg v0.0.2
 	github.com/go-ole/go-ole v1.2.5 // indirect
+	github.com/golang/protobuf v1.5.2
 	github.com/jbuchbinder/gopnm v0.0.0-20150223212718-5176c556b9ce
 	github.com/labstack/gommon v0.3.0
 	github.com/shirou/gopsutil v3.21.3+incompatible // indirect
 	github.com/shirou/gopsutil/v3 v3.21.1 // indirect
-	github.com/synerex/proto_cav v0.0.3
+	github.com/synerex/proto_cav v0.0.4
 	github.com/synerex/proto_json v0.0.1 // indirect
 	github.com/synerex/proto_mqtt v0.1.2
 	github.com/synerex/synerex_api v0.4.2
