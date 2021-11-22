@@ -15,8 +15,8 @@ TARGET=geo-routing
 .PHONY: build 
 build: $(TARGET)
 
-geo-routing: main.go
-	$(GOBUILD) -o $(TARGET) main.go 
+geo-routing: geo-routing.go
+	$(GOBUILD) -o $(TARGET) geo-routing.go 
 
 .PHONY: clean
 clean: 

@@ -2,12 +2,12 @@
 FROM golang:alpine AS build-env
 COPY . /work
 WORKDIR /work
-RUN go build -o geo-routing
+RUN go build
 
 FROM alpine
 WORKDIR /sxbin
 # RUN apk add -u  gnuplot-x11
-COPY --from=build-env /work/geo-routing /sxbin/geo-routing
+COPY --from=build-env /work/time_routing /sxbin/time_routing
 COPY --from=build-env /work/map /sxbin/map
-ENTRYPOINT ["/sxbin/geo-routing"]
+ENTRYPOINT ["/sxbin/time_routing"]
 CMD [""]

@@ -1,0 +1,1 @@
+docker run  -d  --name geo_routing --network synerex-network synerex_geo_routing --nodesrv nodeserv:9990

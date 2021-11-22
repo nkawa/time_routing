@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fukurin00/geo_routing_provider/msg"
-	"github.com/fukurin00/geo_routing_provider/robot"
-	grid "github.com/fukurin00/geo_routing_provider/routing"
-	"github.com/fukurin00/geo_routing_provider/synerex"
 	ros "github.com/fukurin00/go_ros_msg"
+	"github.com/fukurin00/time_routing/msg"
+	"github.com/fukurin00/time_routing/robot"
+	grid "github.com/fukurin00/time_routing/routing"
+	"github.com/fukurin00/time_routing/synerex"
 
 	cav "github.com/synerex/proto_cav"
 	api "github.com/synerex/synerex_api"
@@ -43,7 +43,6 @@ var (
 	robotVel    = flag.Float64("robotVel", 0.3, "robot velocity")
 	robotRotVel = flag.Float64("robotRotVel", 0.5, "robot rotation velocity")
 	resolution  = flag.Float64("reso", 0.28, "path planning resolution")
-	mqttsrv     = flag.String("mqtt", "localhost", "MQTT Broker address")
 
 	mapMetaUpdate               = false
 	mapMeta       *grid.MapMeta = nil
