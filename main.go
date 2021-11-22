@@ -300,6 +300,9 @@ func subsclibeMqttSupply(client *sxutil.SXServiceClient) {
 }
 
 func LoggingSettings(logFile string) {
+	if _, err := os.Stat("log/"); os.IsNotExist(err) {
+		os.Mkdir("log/", 0777)
+	}
 	dir := fmt.Sprintf("log/%s", time.Now().Format("2006-01-02"))
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		os.Mkdir(dir, 0777)

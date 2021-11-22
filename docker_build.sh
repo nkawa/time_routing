@@ -1,1 +1,1 @@
-docker build -t synerex_geo_routing .
+docker build -t fukurin/geo_routing .
