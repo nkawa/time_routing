@@ -159,7 +159,8 @@ func routing(rcd *cav.PathRequest) {
 			// send path
 			times, route := gridMap.Route2PosHexa(timeMapMin, timeStep, routei)
 
-			path := new(cav.Path)
+			path := &cav.Path{}
+			path.Path = make([]*cav.PathPoint, len(route))
 			path.RobotId = rcd.RobotId
 			for i := 0; i < len(route); i++ {
 				pP := new(cav.PathPoint)
@@ -169,13 +170,14 @@ func routing(rcd *cav.PathRequest) {
 				path.Path[i] = pP
 			}
 
+			publishPath(path)
 			// jsonPayload, err = msg.MakePathMsg(route)
 			// if err != nil {
 			// 	log.Print(err)
 			// }
 			// sendPath(jsonPayload, int(rcd.RobotId))
 
-			// update
+			// update costmap
 			gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, aroundCell)
 			now := time.Now()
 			elap := now.Sub(timeMapMin).Seconds()
@@ -276,13 +278,15 @@ func sendPath(jsonPayload []byte, id int) {
 }
 
 func routeCallback(client *sxutil.SXServiceClient, sp *api.Supply) {
-	rcd := &cav.PathRequest{}
-	err := proto.Unmarshal(sp.Cdata.Entity, rcd)
-	if err != nil {
-		log.Print(err)
+	if sp.SupplyName == "RouteDemand" {
+		rcd := &cav.PathRequest{}
+		err := proto.Unmarshal(sp.Cdata.Entity, rcd)
+		if err != nil {
+			log.Print(err)
+		}
+		log.Printf("receive dest request robot%d", rcd.RobotId)
+		routeCh <- rcd
 	}
-	log.Printf("receive dest request robot%d", rcd.RobotId)
-	routeCh <- rcd
 }
 
 func subsclibeRouteSupply(client *sxutil.SXServiceClient) {
@@ -293,38 +297,38 @@ func subsclibeRouteSupply(client *sxutil.SXServiceClient) {
 	}
 }
 
-func mqttCallback(client *sxutil.SXServiceClient, sp *api.Supply) {
-	// ignore my message
-	if sp.SenderId == uint64(client.ClientID) {
-		return
-	}
+// func mqttCallback(client *sxutil.SXServiceClient, sp *api.Supply) {
+// 	// ignore my message
+// 	if sp.SenderId == uint64(client.ClientID) {
+// 		return
+// 	}
 
-	// rcd := &proto_mqtt.MQTTRecord{}
-	// err := proto.Unmarshal(sp.Cdata.Entity, rcd)
-	// if err != nil {
-	// 	log.Print("mqtt unmarshal error: ", err)
-	// } else {
-	// 	if strings.HasPrefix(rcd.Topic, "robot/position/") {
-	// 		var id int
-	// 		fmt.Scanf(rcd.Topic, "robot/position/%d", &id)
-	// 		if val, ok := robotList[id]; ok {
-	// 			val.SetPos(rcd.Record)
-	// 		} else {
-	// 			robotList[id] = robot.NewRobot(id, robotRadius)
-	// 			robotList[id].SetPos(rcd.Record)
-	// 		}
-	// 	}
-	// }
+// rcd := &proto_mqtt.MQTTRecord{}
+// err := proto.Unmarshal(sp.Cdata.Entity, rcd)
+// if err != nil {
+// 	log.Print("mqtt unmarshal error: ", err)
+// } else {
+// 	if strings.HasPrefix(rcd.Topic, "robot/position/") {
+// 		var id int
+// 		fmt.Scanf(rcd.Topic, "robot/position/%d", &id)
+// 		if val, ok := robotList[id]; ok {
+// 			val.SetPos(rcd.Record)
+// 		} else {
+// 			robotList[id] = robot.NewRobot(id, robotRadius)
+// 			robotList[id].SetPos(rcd.Record)
+// 		}
+// 	}
+// }
 
-}
+// }
 
-func subsclibeMqttSupply(client *sxutil.SXServiceClient) {
-	ctx := context.Background()
-	for {
-		client.SubscribeSupply(ctx, mqttCallback)
-		synerex.ReconnectClient(client)
-	}
-}
+// func subsclibeMqttSupply(client *sxutil.SXServiceClient) {
+// 	ctx := context.Background()
+// 	for {
+// 		client.SubscribeSupply(ctx, mqttCallback)
+// 		synerex.ReconnectClient(client)
+// 	}
+// }
 
 func LoggingSettings(logFile string) {
 	if _, err := os.Stat("log/"); os.IsNotExist(err) {
@@ -396,9 +400,8 @@ func main() {
 
 	go handleRouting()
 
-	//testPath()
 	go subsclibeRouteSupply(synerex.RouteClient)
-	go subsclibeMqttSupply(synerex.MqttClient)
+	// go subsclibeMqttSupply(synerex.MqttClient)
 
 	//go updateTimeObjMapHandler()
 

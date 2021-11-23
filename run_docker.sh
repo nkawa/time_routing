@@ -1,1 +1,1 @@
-docker run  -d  --name geo_routing --network synerex-network fukurin/geo_routing --nodesrv nodeserv:9990
+docker run  -d  --rm --name geo_routing --network synerex-network fukurin/geo_routing --nodesrv nodeserv:9990
