@@ -151,7 +151,7 @@ func routing(rcd *cav.PathRequest) {
 		log.Printf("elaps %fseconds update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
 
 		//planning
-		routei, stops, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
+		routei, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
 
 		if err != nil {
 			log.Print(err)
@@ -190,7 +190,7 @@ func routing(rcd *cav.PathRequest) {
 
 			// save route file
 			csvName := fmt.Sprintf("log/route/%s/%s_%d.csv", now.Format("2006-01-02"), now.Format("01-02-15-4"), rcd.RobotId)
-			go grid.SaveRouteCsv(csvName, times, route, stops)
+			go grid.SaveRouteCsv(csvName, times, route)
 
 			// if rob, ok := robotList[int(rcd.RobotId)]; ok {
 			// 	rob.SetPath(routei)

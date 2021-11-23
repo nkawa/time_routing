@@ -95,16 +95,16 @@ func getYAB(a, b float64) float64 {
 	return a/2 - b/2
 }
 
-func (g GridMap) Pos2IndHexa(x, y float64) (int, int) {
-	if x < g.MapOrigin.X || y < g.MapOrigin.Y {
+func (g *GridMap) Pos2IndHexa(x, y float64) (int, int) {
+	a := getA(x, y)
+	b := getB(x, y)
+	if a < g.MapOrigin.X || b < g.MapOrigin.Y {
 		log.Printf("position (%f,%f) is out of map", x, y)
 		return 0, 0
 	}
-	a := getA(x, y)
-	b := getB(x, y)
-	xid := int(math.Round((a - g.Origin.X) / g.Resolution))
-	yid := int(math.Round((b - g.Origin.Y) / g.Resolution))
-	return xid, yid
+	aid := int(math.Round((a - g.Origin.X) / g.Resolution))
+	bid := int(math.Round((b - g.Origin.Y) / g.Resolution))
+	return aid, bid
 }
 
 type logOpt struct {
@@ -115,26 +115,26 @@ type logOpt struct {
 	StopCount int
 }
 
-func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool) (route [][3]int, stops []int, oerr error) {
+func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool) (route [][3]int, oerr error) {
 	startTime := time.Now()
 	//var logData []logOpt
 
-	sx := int(getXAB(float64(sa), float64(sb)))
-	sy := int(getYAB(float64(sa), float64(sb)))
-	gx := int(getXAB(float64(ga), float64(gb)))
-	gy := int(getYAB(float64(ga), float64(gb)))
+	saw := m.MapOrigin.X + float64(sa)*m.Resolution
+	sbw := m.MapOrigin.Y + float64(sb)*m.Resolution
+	gaw := m.MapOrigin.X + float64(ga)*m.Resolution
+	gbw := m.MapOrigin.Y + float64(gb)*m.Resolution
 
 	log.Printf("start planning robot%d (%f, %f) to (%f, %f)",
 		id,
-		m.MapOrigin.X+float64(sx)*m.Resolution,
-		m.MapOrigin.Y+float64(sy)*m.Resolution,
-		m.MapOrigin.X+float64(gx)*m.Resolution,
-		m.MapOrigin.Y+float64(gy)*m.Resolution,
+		saw,
+		sbw,
+		gaw,
+		gbw,
 	)
 
 	if m.ObjectMap[newIndex(ga, gb)] {
 		oerr = fmt.Errorf("robot%d path planning error: goal is not verified", id)
-		return nil, nil, oerr
+		return nil, oerr
 	}
 
 	// init start,goal nodes
@@ -158,7 +158,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		// failure
 		if len(openSetT) == 0 {
 			oerr = fmt.Errorf("path planning error: open set is empty, count %d", count)
-			return nil, nil, oerr
+			return nil, oerr
 		}
 
 		// 30秒以上で諦める
@@ -179,7 +179,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
 			oerr = errors.New("path planning timeouted")
 			routei := m.finalPath(goal, closeSetT)
-			return routei, nil, oerr
+			return routei, oerr
 		}
 
 		// get minimum cost node in open set
@@ -214,16 +214,12 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 			route := m.finalPath(goal, closeSetT)
 			log.Printf("robot%d planning took %f seconds, count: %d, length: %d",
 				id,
-				// m.MapOrigin.X+float64(sx)*m.Resolution,
-				// m.MapOrigin.Y+float64(sy)*m.Resolution,
-				// m.MapOrigin.X+float64(gx)*m.Resolution,
-				// m.MapOrigin.Y+float64(gy)*m.Resolution,
 				elaps,
 				count,
 				len(route),
 			)
 			log.Printf("it has %d length, %f seconds", len(route), float64(len(route))*timeStep)
-			return route, stops, nil
+			return route, nil
 		}
 
 		delete(openSetT, minKey)
