@@ -120,9 +120,9 @@ func routing(rcd *cav.PathRequest) {
 		elap := now.Sub(timeMapMin).Seconds()
 		updateStep := int(math.Round(elap / timeStep))
 		timeRobotMap = gridMap.UpdateStep(timeRobotMap, updateStep)
-		addTime := time.Duration(int64(float64(updateStep)*timeStep*math.Pow10(6))) * time.Microsecond
+		// addTime := time.Duration(int64(float64(updateStep)*timeStep*math.Pow10(6))) * time.Microsecond
+		addTime := time.Duration(int64(float64(updateStep)*timeStep)) * time.Second
 		timeMapMin = timeMapMin.Add(addTime)
-		log.Print(timeMapMin)
 		log.Printf("elaps %fseconds update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
 
 		//planning
@@ -153,9 +153,9 @@ func routing(rcd *cav.PathRequest) {
 			elap := now.Sub(timeMapMin).Seconds()
 			updateStep := int(math.Round(elap / timeStep))
 			timeRobotMap = gridMap.UpdateStep(timeRobotMap, updateStep)
-			addTime := time.Duration(int64(float64(updateStep)*timeStep*math.Pow10(6))) * time.Microsecond
+			// addTime := time.Duration(int64(float64(updateStep)*timeStep*math.Pow10(6))) * time.Microsecond
+			addTime := time.Duration(int64(float64(updateStep)*timeStep)) * time.Second
 			timeMapMin = timeMapMin.Add(addTime)
-			log.Print(timeMapMin)
 			log.Printf("elaps %fsecond update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
 
 			// save route file
