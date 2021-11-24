@@ -28,20 +28,18 @@ import (
 
 const (
 	closeThresh float64 = 0.85
-
-	mapFile  string = "map/projection_edit.pgm"
-	yamlFile string = "map/projection_edit.yaml"
 )
 
 var (
 	mode Mode
 
 	// runtime parameter
-	robotsize   = flag.Float64("robotSize", 0.4, "robot radius")
-	robotVel    = flag.Float64("robotVel", 1.0, "robot velocity")
-	robotRotVel = flag.Float64("robotRotVel", 0.5, "robot rotation velocity")
-	resolution  = flag.Float64("reso", 0.3, "path planning resolution")
-	modeF       = flag.Int("mode", 2, "planning mode: 0:astar2d, 1:astar3d, 2:hexastar3d, default is 2")
+	robotsize  = flag.Float64("robotSize", 0.4, "robot radius")
+	robotVel   = flag.Float64("robotVel", 1.5, "robot velocity")
+	resolution = flag.Float64("reso", 0.3, "path planning resolution")
+	modeF      = flag.Int("mode", 2, "planning mode: 0:astar2d, 1:astar3d, 2:hexastar3d, default is 2")
+	yamlFile   = flag.String("yaml", "map/projection_edit.yaml", "yaml file")
+	timeBeta   = flag.Float64("timebeta", 1.5, "the weight of time scale")
 
 	gridMap      *grid.GridMap = nil
 	astarPlanner *astar.Astar  //if 2d mode
@@ -51,12 +49,11 @@ var (
 
 	routeCh chan *cav.PathRequest
 
-	timeStep         float64 //計算に使う1stepの秒数
-	reso             float64
-	robotRadius      float64
-	robotVelocity    float64
-	robotRotVelocity float64
-	aroundCell       int
+	timeStep      float64 //計算に使う1stepの秒数
+	reso          float64
+	robotRadius   float64
+	robotVelocity float64
+	aroundCell    int
 )
 
 func init() {
@@ -68,7 +65,6 @@ func init() {
 	reso = *resolution
 	robotRadius = *robotsize
 	robotVelocity = *robotVel
-	robotRotVelocity = *robotRotVel
 	timeStep = reso / robotVelocity
 
 	aroundCell = grid.GetAoundCell(robotRadius, reso)
@@ -126,7 +122,7 @@ func routing(rcd *cav.PathRequest) {
 		log.Printf("elaps %fseconds update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
 
 		//planning
-		routei, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, robotRotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others)
+		routei, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others, *timeBeta)
 
 		if err != nil {
 			log.Print(err)
@@ -291,7 +287,7 @@ func LoggingSettings(logFile string) {
 }
 
 func SetupStaticMap() {
-	mapMeta, err := grid.ReadStaticMapImage(yamlFile, mapFile, closeThresh)
+	mapMeta, err := grid.ReadStaticMapImage(*yamlFile, closeThresh)
 	if err != nil {
 		log.Print("read map file error: ", err)
 	}
@@ -311,7 +307,7 @@ func SetupStaticMap() {
 }
 
 func main() {
-	log.Printf("start geo-routing server mode:%s, timestep:%f, resolution:%f, robotRadius:%f,robotVel: %f/%f, aroundCell: %d, mapfile:%s", mode.String(), timeStep, reso, *robotsize, *robotVel, *robotRotVel, aroundCell, mapFile)
+	log.Printf("start geo-routing server mode:%s, timestep:%f, resolution:%f, robotRadius:%f,robotVel: %f, aroundCell: %d, mapfile:%s", mode.String(), timeStep, reso, *robotsize, *robotVel, aroundCell, *yamlFile)
 	go sxutil.HandleSigInt()
 	wg := sync.WaitGroup{}
 	sxutil.RegisterDeferFunction(sxutil.UnRegisterNode)

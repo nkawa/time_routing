@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"time"
 
 	ros "github.com/fukurin00/go_ros_msg"
@@ -37,12 +38,13 @@ func LoadROSMap(grid ros.OccupancyGrid, closeThreth int) *MapMeta {
 }
 
 // read image file of ROS format
-func ReadStaticMapImage(yamlFile, mapFile string, closeThreth float64) (*MapMeta, error) {
+func ReadStaticMapImage(yamlFile string, closeThreth float64) (*MapMeta, error) {
 	m := new(MapMeta)
 	mapConfig := ReadImageYaml(yamlFile)
 	m.Reso = mapConfig.Resolution
 	m.Origin = Point{X: mapConfig.Origin[0], Y: mapConfig.Origin[1]}
 
+	mapFile := path.Join(path.Dir(yamlFile), mapConfig.Image)
 	file, err := os.Open(mapFile)
 	if err != nil {
 		return m, err

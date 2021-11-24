@@ -112,7 +112,7 @@ type logOpt struct {
 	StopCount int
 }
 
-func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TRW TimeRobotMap, otherObjects map[Index]bool) (route [][3]int, oerr error) {
+func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, timeStep float64, TRW TimeRobotMap, otherObjects map[Index]bool, timeBeta float64) (route [][3]int, oerr error) {
 	startTime := time.Now()
 	//var logData []logOpt
 
@@ -223,7 +223,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		closeSet[nodeIndex(current)] = current
 		closeSetT[nodeIndexT(current)] = current
 
-		around := current.AroundHexa(&m, minTime, v, w, timeStep, TRW, otherObjects)
+		around := current.AroundHexa(&m, minTime, v, timeStep, TRW, otherObjects, timeBeta)
 		for _, an := range around {
 			indT := nodeIndexT(an)
 			ind := nodeIndex(an)
@@ -259,7 +259,7 @@ func (g GridMap) Route2PosHexa(minT time.Time, timeStep float64, route [][3]int)
 	return fTime, fRoute
 }
 
-func (n Node) AroundHexa(g *GridMap, minTime int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool) []*Node {
+func (n Node) AroundHexa(g *GridMap, minTime int, v, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool, timeBeta float64) []*Node {
 	// [time, x, y, cost]
 	motion := [][4]float64{
 		{1.0, 0.0, 0.0, 0.0},
@@ -321,12 +321,12 @@ func (n Node) AroundHexa(g *GridMap, minTime int, v, w, timeStep float64, TRW Ti
 			}
 		}
 
-		node := n.NewNode(aT, aX, aY, n.G+m[3], n.S+1.5*m[0])
+		node := n.NewNode(aT, aX, aY, n.G+m[3], n.S+timeBeta*m[0])
 
 		// MaxStopCount以上止まりすぎはだめ
-		if node.S > MaxS {
-			continue
-		}
+		// if node.S > MaxS {
+		// 	continue
+		// }
 
 		around = append(around, node)
 	}
@@ -341,7 +341,11 @@ func heuristicHexa(n1, n2 *Node) float64 {
 	// y2 := getYAB(float64(n2.XId), float64(n2.YId))
 	// d := w * math.Hypot(x1-x2, y1-y2)
 
-	d := w * math.Hypot(float64(n1.XId)-float64(n2.XId), float64(n1.YId)-float64(n2.YId))
+	x1 := getXAB(float64(n1.XId), float64(n1.YId))
+	y1 := getYAB(float64(n1.XId), float64(n1.YId))
+	x2 := getXAB(float64(n2.XId), float64(n2.YId))
+	y2 := getYAB(float64(n2.XId), float64(n2.YId))
+	d := w * math.Hypot(x1-x2, y1-y2)
 	return d
 }
 

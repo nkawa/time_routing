@@ -181,7 +181,6 @@ func (p *Node) NewNode(t, x, y int, g, s float64) *Node {
 	n.Parent = p
 	n.G = g
 	n.S = s
-	n.F = g + s
 
 	return n
 }

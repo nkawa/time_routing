@@ -62,7 +62,7 @@ func (g GridMap) UpdateTimeObjMapHexa(TW TimeRobotMap, route [][3]int, aroundCel
 	var ix int
 	var iy int
 	for i := 0; i < len(route); i++ {
-		for j := -2; j <= 2; j++ {
+		for j := 0; j <= 2; j++ {
 			it = route[i][0] + j
 			if it < 0 || it > MaxTimeLength {
 				continue
@@ -92,11 +92,7 @@ func (g GridMap) UpdateTimeObjMapHexa(TW TimeRobotMap, route [][3]int, aroundCel
 				}
 				TW[newIndexT(it, nx, ny)] = true
 			}
-
 		}
-	}
-	for j := it; j < MaxTimeLength; j++ {
-		TW[newIndexT(it+j, ix, iy)] = true
 	}
 }
 
