@@ -1,10 +1,7 @@
 package routing
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
 	"sync"
@@ -16,8 +13,8 @@ var (
 )
 
 const (
-	Mode = 1 //around 6
-	// Mode = 2 //around 12
+	// Mode = 1 //around 6
+	Mode = 2 //around 12
 )
 
 // initialize custom resolution
@@ -162,25 +159,25 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		}
 
 		// 30秒以上で諦める
-		if time.Since(startTime).Seconds() > 30 {
-			a := m.Origin.X + float64(current.XId)*m.Resolution
-			b := m.Origin.Y + float64(current.YId)*m.Resolution
-			log.Printf("path planning time out. count %d current is (%d, %f, %f)",
-				count,
-				current.T,
-				getXAB(a, b),
-				getYAB(a, b),
-			)
-			bytes, jerr := json.MarshalIndent(logData, "", " ")
-			if jerr != nil {
-				log.Print(jerr)
-			}
-			now := time.Now()
-			ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
-			oerr = errors.New("path planning timeouted")
-			routei := m.finalPath(goal, closeSetT)
-			return routei, oerr
-		}
+		// if time.Since(startTime).Seconds() > 30 {
+		// 	a := m.Origin.X + float64(current.XId)*m.Resolution
+		// 	b := m.Origin.Y + float64(current.YId)*m.Resolution
+		// 	log.Printf("path planning time out. count %d current is (%d, %f, %f)",
+		// 		count,
+		// 		current.T,
+		// 		getXAB(a, b),
+		// 		getYAB(a, b),
+		// 	)
+		// 	bytes, jerr := json.MarshalIndent(logData, "", " ")
+		// 	if jerr != nil {
+		// 		log.Print(jerr)
+		// 	}
+		// 	now := time.Now()
+		// 	ioutil.WriteFile(fmt.Sprintf("log/route/%s/fail_route%d_%s.log", now.Format("2006-01-02"), id, now.Format("01-02-15-4")), bytes, 0666)
+		// 	oerr = errors.New("path planning timeouted")
+		// 	routei := m.finalPath(goal, closeSetT)
+		// 	return routei, oerr
+		// }
 
 		// get minimum cost node in open set
 		minCost := 9999999999999999999.9
@@ -324,7 +321,7 @@ func (n Node) AroundHexa(g *GridMap, minTime int, v, w, timeStep float64, TRW Ti
 			}
 		}
 
-		node := n.NewNode(aT, aX, aY, n.G+m[3], n.S+0.1*m[0])
+		node := n.NewNode(aT, aX, aY, n.G+m[3], n.S+1.5*m[0])
 
 		// MaxStopCount以上止まりすぎはだめ
 		if node.S > MaxS {
