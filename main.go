@@ -20,7 +20,6 @@ import (
 	sxutil "github.com/synerex/synerex_sxutil"
 	"google.golang.org/protobuf/proto"
 
-	mqtt "github.com/eclipse/paho.mqtt.golang"
 	astar "github.com/fukurin00/astar_golang"
 	"github.com/synerex/proto_mqtt"
 
@@ -35,24 +34,21 @@ const (
 )
 
 var (
-	mode Mode = ASTAR3DHEXA
+	mode Mode
 
 	// runtime parameter
 	robotsize   = flag.Float64("robotSize", 0.4, "robot radius")
 	robotVel    = flag.Float64("robotVel", 1.0, "robot velocity")
 	robotRotVel = flag.Float64("robotRotVel", 0.5, "robot rotation velocity")
 	resolution  = flag.Float64("reso", 0.3, "path planning resolution")
+	modeF       = flag.Int("mode", 2, "planning mode: 0:astar2d, 1:astar3d, 2:hexastar3d, default is 2")
 
-	mapMeta      *grid.MapMeta = nil
 	gridMap      *grid.GridMap = nil
 	astarPlanner *astar.Astar  //if 2d mode
 
 	timeRobotMap grid.TimeRobotMap = nil // ロボットがいるかどうかのマップ
 	timeMapMin   time.Time               //time mapの最小時刻
 
-	clt mqtt.Client
-
-	msgCh   chan mqtt.Message
 	routeCh chan *cav.PathRequest
 
 	timeStep         float64 //計算に使う1stepの秒数
@@ -64,10 +60,11 @@ var (
 )
 
 func init() {
-	msgCh = make(chan mqtt.Message)
 	routeCh = make(chan *cav.PathRequest)
 
 	flag.Parse()
+	mode = Mode(*modeF)
+
 	reso = *resolution
 	robotRadius = *robotsize
 	robotVelocity = *robotVel
@@ -111,6 +108,12 @@ func routing(rcd *cav.PathRequest) {
 
 		// 止まってるロボットの位置取得
 		others := make(map[grid.Index]bool)
+		if len(rcd.Objects) > 0 {
+			for _, o := range rcd.Objects {
+				osa, osb := gridMap.Pos2IndHexa(float64(o.X), float64(o.Y))
+				others[grid.NewIndex(osa, osb)] = true
+			}
+		}
 
 		// update robot map
 		now := time.Now()
@@ -330,8 +333,6 @@ func main() {
 
 	go subsclibeRouteSupply(synerex.RouteClient)
 	// go subsclibeMqttSupply(synerex.MqttClient)
-
-	//go updateTimeObjMapHandler()
 
 	wg.Add(1)
 	wg.Wait()

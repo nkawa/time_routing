@@ -112,7 +112,7 @@ type logOpt struct {
 	StopCount int
 }
 
-func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool) (route [][3]int, oerr error) {
+func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TRW TimeRobotMap, otherObjects map[Index]bool) (route [][3]int, oerr error) {
 	startTime := time.Now()
 	//var logData []logOpt
 
@@ -223,7 +223,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, w, timeStep float64, TR
 		closeSet[nodeIndex(current)] = current
 		closeSetT[nodeIndexT(current)] = current
 
-		around := current.AroundHexa(&m, minTime, v, w, timeStep, TRW, otherRobot)
+		around := current.AroundHexa(&m, minTime, v, w, timeStep, TRW, otherObjects)
 		for _, an := range around {
 			indT := nodeIndexT(an)
 			ind := nodeIndex(an)
