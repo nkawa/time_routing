@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/png"
 	"io/ioutil"
 	"log"
 	"os"
@@ -63,6 +64,9 @@ func ReadStaticMapImage(yamlFile string, closeThreth float64) (*MapMeta, error) 
 	data := make([]int8, m.W*m.H)
 	open := 0
 	close := 0
+
+	output := image.NewNRGBA(imData.Bounds())
+
 	for j := m.H - 1; j >= 0; j-- {
 		for i := 0; i < m.W; i++ {
 			oldPix := imData.At(i, j)
@@ -74,15 +78,32 @@ func ReadStaticMapImage(yamlFile string, closeThreth float64) (*MapMeta, error) 
 			if a > closeThreth {
 				v = 100
 				close += 1
+				output.Set(i, j, color.Black)
 			} else {
 				v = 0
 				open += 1
+				output.Set(i, j, color.Opaque)
 			}
 			data[i+(m.H-j-1)*m.W] = v
 		}
 	}
 	log.Printf("open: %d, close: %d", open, close)
 	m.Data = data
+
+	f, err := os.Create("log/costmap.png")
+	if err != nil {
+		// Handle error
+		log.Print(err)
+	}
+	defer f.Close()
+
+	// Encode to `PNG` with `DefaultCompression` level
+	// then save to file
+	err = png.Encode(f, output)
+	if err != nil {
+		// Handle error
+		log.Print(err)
+	}
 
 	return m, nil
 }

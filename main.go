@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	closeThresh float64 = 0.85
+	closeThresh float64 = 0.5
 )
 
 var (
