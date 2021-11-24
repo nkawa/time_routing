@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/fukurin00/time_routing/msg"
-	"github.com/fukurin00/time_routing/robot"
 	grid "github.com/fukurin00/time_routing/routing"
 	"github.com/fukurin00/time_routing/synerex"
 
@@ -48,8 +47,6 @@ var (
 	gridMap      *grid.GridMap = nil
 	astarPlanner *astar.Astar  //if 2d mode
 
-	robotList map[int]*robot.RobotStatus
-
 	timeRobotMap grid.TimeRobotMap = nil // ロボットがいるかどうかのマップ
 	timeMapMin   time.Time               //time mapの最小時刻
 
@@ -69,8 +66,6 @@ var (
 func init() {
 	msgCh = make(chan mqtt.Message)
 	routeCh = make(chan *cav.PathRequest)
-
-	robotList = make(map[int]*robot.RobotStatus)
 
 	flag.Parse()
 	reso = *resolution
@@ -114,30 +109,8 @@ func routing(rcd *cav.PathRequest) {
 		isa, isb := gridMap.Pos2IndHexa(float64(rcd.Start.X), float64(rcd.Start.Y))
 		iga, igb := gridMap.Pos2IndHexa(float64(rcd.Goal.X), float64(rcd.Goal.Y))
 
-		// if val, ok := robotList[int(rcd.RobotId)]; ok {
-		// 	val.SetDest(ros.Point{X: float64(rcd.Goal.X), Y: float64(rcd.Goal.Y)})
-		// }
-
 		// 止まってるロボットの位置取得
-		// var otherCount int = 0
 		others := make(map[grid.Index]bool)
-		// for id, robot := range robotList {
-		// 	if id == int(rcd.RobotId) {
-		// 		continue
-		// 	} else {
-		// 		if !robot.HavePath {
-		// 			otherCount += 1
-		// 			ia, ib := gridMap.Pos2IndHexa(robot.Pos.X, robot.Pos.Y)
-		// 			others[grid.NewIndex(ia, ib)] = true
-		// 			if aroundCell >= 2 {
-		// 				for _, an := range grid.Around {
-		// 					others[grid.NewIndex(ia+an[0], ib+an[1])] = true
-		// 				}
-		// 			}
-		// 		}
-		// 	}
-		// }
-		// log.Printf("robot is %d not have path robot is %d", len(robotList), otherCount)
 
 		// update robot map
 		now := time.Now()
@@ -186,12 +159,6 @@ func routing(rcd *cav.PathRequest) {
 			csvName := fmt.Sprintf("log/route/%s/%s_%d.csv", now.Format("2006-01-02"), now.Format("01-02-15-4"), rcd.RobotId)
 			go grid.SaveRouteCsv(csvName, times, route)
 
-			// if rob, ok := robotList[int(rcd.RobotId)]; ok {
-			// 	rob.SetPath(routei)
-			// } else {
-			// 	robotList[int(rcd.RobotId)] = robot.NewRobot(int(rcd.RobotId), robotRadius)
-			// 	robotList[int(rcd.RobotId)].SetPath(routei)
-			// }
 		}
 
 	} else if mode == ASTAR3D {
