@@ -57,14 +57,14 @@ func TRWCopy(current TimeRobotMap) TimeRobotMap {
 	return trw
 }
 
-func (g GridMap) UpdateTimeObjMapHexa(TW TimeRobotMap, route [][3]int, aroundCell int) {
+func (g GridMap) UpdateTimeObjMapHexa(TW TimeRobotMap, route [][3]int, aroundCell int, timeStepLoos int) {
 
 	var ar [][2]int
 	var it int
 	var ix int
 	var iy int
 	for i := 0; i < len(route); i++ {
-		for j := 0; j <= 2; j++ {
+		for j := 0; j <= timeStepLoos; j++ {
 			it = route[i][0] + j
 			if it < 0 || it > MaxTimeLength {
 				continue

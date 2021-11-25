@@ -34,12 +34,13 @@ var (
 	mode Mode
 
 	// runtime parameter
-	robotsize  = flag.Float64("robotSize", 0.4, "robot radius")
-	robotVel   = flag.Float64("robotVel", 1.5, "robot velocity")
-	resolution = flag.Float64("reso", 0.3, "path planning resolution")
-	modeF      = flag.Int("mode", 2, "planning mode: 0:astar2d, 1:astar3d, 2:hexastar3d, default is 2")
-	yamlFile   = flag.String("yaml", "map/projection_edit.yaml", "yaml file")
-	timeBeta   = flag.Float64("timebeta", 1.5, "the weight of time scale")
+	robotsize    = flag.Float64("robotSize", 0.4, "robot radius")
+	robotVel     = flag.Float64("robotVel", 1.5, "robot velocity")
+	resolution   = flag.Float64("reso", 0.3, "path planning resolution")
+	modeF        = flag.Int("mode", 2, "planning mode: 0:astar2d, 1:astar3d, 2:hexastar3d, default is 2")
+	yamlFile     = flag.String("yaml", "map/projection_edit.yaml", "yaml file")
+	timeBeta     = flag.Float64("timebeta", 1.5, "the weight of time scale")
+	timeStepLoos = flag.Int("tsl", 10, "how many timestep is single route occupied")
 
 	gridMap      *grid.GridMap = nil
 	astarPlanner *astar.Astar  //if 2d mode
@@ -116,7 +117,6 @@ func routing(rcd *cav.PathRequest) {
 		elap := now.Sub(timeMapMin).Seconds()
 		updateStep := int(math.Round(elap / timeStep))
 		timeRobotMap = gridMap.UpdateStep(timeRobotMap, updateStep)
-		// addTime := time.Duration(int64(float64(updateStep)*timeStep*math.Pow10(6))) * time.Microsecond
 		addTime := time.Duration(int64(float64(updateStep)*timeStep)) * time.Second
 		timeMapMin = timeMapMin.Add(addTime)
 		log.Printf("elaps %fseconds update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
@@ -144,7 +144,7 @@ func routing(rcd *cav.PathRequest) {
 			publishPath(path)
 
 			// update costmap
-			gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, aroundCell)
+			gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, aroundCell, *timeStepLoos)
 			now := time.Now()
 			elap := now.Sub(timeMapMin).Seconds()
 			updateStep := int(math.Round(elap / timeStep))

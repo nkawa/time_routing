@@ -273,21 +273,24 @@ func (n Node) AroundHexa(g *GridMap, minTime int, v, timeStep float64, TRW TimeR
 	if Mode == 2 {
 		motion2 := [][4]float64{
 			//1個奥
-			{1.0, 1.0, 1.0, 2.0},
-			{1.0, 2.0, -1.0, 2.0},
-			{1.0, -1.0, -1.0, 2.0},
-			{1.0, -2.0, 1.0, 2.0},
-			{1.0, 1.0, -2.0, 2.0},
-			{1.0, -1.0, 2.0, 2.0},
+			{0.0, 1.0, 1.0, 2.0},
+			{0.0, 2.0, -1.0, 2.0},
+			{0.0, -1.0, -1.0, 2.0},
+			{0.0, -2.0, 1.0, 2.0},
+			{0.0, 1.0, -2.0, 2.0},
+			{0.0, -1.0, 2.0, 2.0},
 		}
 		motion = append(motion, motion2...)
 	}
 
 	var around []*Node
-	for _, m := range motion {
+	for i, m := range motion {
 		aX := n.XId + int(m[1])
 		aY := n.YId + int(m[2])
 		aT := n.T + 1
+		if i >= 7 {
+			aT += 1
+		}
 
 		//時間コストマップ外の時間は外す
 		if aT >= g.MaxT {
