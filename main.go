@@ -184,11 +184,17 @@ func routing(rcd *cav.PathRequest) {
 		if err != nil {
 			log.Print(err)
 		} else {
-			jsonPayload, err = msg.MakePathMsg2D(route)
-			if err != nil {
-				log.Print(err)
+			path := &cav.Path{}
+			path.Path = make([]*cav.PathPoint, len(route))
+			path.RobotId = rcd.RobotId
+			for i := 0; i < len(route); i++ {
+				pP := new(cav.PathPoint)
+				pP.Seq = int64(i)
+				pP.Pose = &cav.Point{X: float32(route[i][0]), Y: float32(route[i][1])}
+				// pP.Ts, _ = ptypes.TimestampProto(times[i])
+				path.Path[i] = pP
 			}
-			sendPath(jsonPayload, int(rcd.RobotId))
+			publishPath(path)
 		}
 	}
 
