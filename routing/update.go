@@ -10,6 +10,8 @@ var (
 )
 
 func GetAoundCell(r, l float64) int {
+	// r: robotRadius
+	// l: resolution
 	if 2*1.1*r <= l/2 {
 		return 1
 	} else if 2*1.1*r <= 2/math.Sqrt(3)*l {
