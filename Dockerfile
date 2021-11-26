@@ -9,5 +9,6 @@ WORKDIR /sxbin
 # RUN apk add -u  gnuplot-x11
 COPY --from=build-env /work/time_routing /sxbin/time_routing
 COPY --from=build-env /work/map /sxbin/map
+RUN mkdir log
 ENTRYPOINT ["/sxbin/time_routing"]
 CMD [""]
