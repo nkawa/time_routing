@@ -191,7 +191,7 @@ func routing(rcd *cav.PathRequest) {
 				pP := new(cav.PathPoint)
 				pP.Seq = int64(i)
 				pP.Pose = &cav.Point{X: float32(route[i][0]), Y: float32(route[i][1])}
-				// pP.Ts, _ = ptypes.TimestampProto(times[i])
+				pP.Ts, _ = ptypes.TimestampProto(time.Now().Add(time.Duration(i*int(timeStep)) * time.Second))
 				path.Path[i] = pP
 			}
 			publishPath(path)
