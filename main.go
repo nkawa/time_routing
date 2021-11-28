@@ -180,18 +180,22 @@ func routing(rcd *cav.PathRequest) {
 			sendPath(jsonPayload, int(rcd.RobotId))
 		}
 	} else if mode == ASTAR2D {
+		start := time.Now()
 		route, err := astarPlanner.Plan(float64(rcd.Start.X), float64(rcd.Start.Y), float64(rcd.Goal.X), float64(rcd.Goal.Y))
 		if err != nil {
 			log.Print(err)
 		} else {
+			elaps := time.Now().Sub(start).Seconds()
+			log.Printf("robot %d planning took %f seconds, %d length", rcd.RobotId, elaps, len(route))
 			path := &cav.Path{}
 			path.Path = make([]*cav.PathPoint, len(route))
 			path.RobotId = rcd.RobotId
+			now := time.Now()
 			for i := 0; i < len(route); i++ {
 				pP := new(cav.PathPoint)
 				pP.Seq = int64(i)
 				pP.Pose = &cav.Point{X: float32(route[i][0]), Y: float32(route[i][1])}
-				pP.Ts, _ = ptypes.TimestampProto(time.Now().Add(time.Duration(i*int(timeStep)) * time.Second))
+				pP.Ts, _ = ptypes.TimestampProto(now.Add(time.Duration(float64(i)*timeStep) * time.Second))
 				path.Path[i] = pP
 			}
 			publishPath(path)
