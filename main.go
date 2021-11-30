@@ -305,7 +305,7 @@ func SetupStaticMap() {
 	reso := *resolution
 	if mode == ASTAR2D {
 		astarPlanner = astar.NewAstar(objMap, robotRadius, reso)
-		log.Print("load astar obj map")
+		log.Printf("load astar obj map, width:%d, height:%d", astarPlanner.XWidth, astarPlanner.YWidth)
 	} else if mode == ASTAR3D {
 		gridMap = grid.NewGridMapReso(*mapMeta, robotRadius, reso, objMap)
 		timeRobotMap = grid.NewTRW(gridMap.MaxT, gridMap.Width, gridMap.Height)
