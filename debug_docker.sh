@@ -1,1 +1,1 @@
-docker run  --rm --name geo_routing --network synerex-network -v ${PWD}/log:/sxbin/log fukurin/geo_routing --nodesrv nodeserv:9990 --mode 0 --reso 0.5 --robotSize 0.5 --robotVel 1.0 --tsl 20 --timebeta 1.2
+docker run  --rm --name geo_routing --network synerex-network -v ${PWD}/log:/sxbin/log fukurin/geo_routing --nodesrv nodeserv:9990 --mode 2 --reso 0.50 --robotSize 0.66 --robotVel 1.0 --tsl 10 --timebeta 1.2
