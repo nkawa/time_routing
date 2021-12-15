@@ -123,10 +123,10 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, timeStep float64, TRW T
 
 	log.Printf("start planning robot%d (%f, %f) to (%f, %f)",
 		id,
-		saw,
-		sbw,
-		gaw,
-		gbw,
+		getXAB(saw, sbw),
+		getYAB(saw, sbw),
+		getXAB(gaw, gbw),
+		getYAB(gaw, gbw),
 	)
 
 	if m.ObjectMap[newIndex(ga, gb)] {
