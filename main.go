@@ -34,13 +34,13 @@ var (
 	mode Mode
 
 	// runtime parameter
-	robotsize    = flag.Float64("robotSize", 0.4, "robot radius")
-	robotVel     = flag.Float64("robotVel", 1.5, "robot velocity")
-	resolution   = flag.Float64("reso", 0.3, "path planning resolution")
-	modeF        = flag.Int("mode", 2, "planning mode: 0:astar2d, 1:astar3d, 2:hexastar3d, default is 2")
-	yamlFile     = flag.String("yaml", "map/projection_edit.yaml", "yaml file")
-	timeBeta     = flag.Float64("timebeta", 1.5, "the weight of time scale")
-	timeStepLoos = flag.Int("tsl", 10, "how many timestep is single route occupied")
+	robotsize            = flag.Float64("robotSize", 0.4, "robot radius")
+	robotVel             = flag.Float64("robotVel", 1.5, "robot velocity")
+	resolution           = flag.Float64("reso", 0.3, "path planning resolution")
+	modeF                = flag.Int("mode", 2, "planning mode: 0:astar2d, 1:astar3d, 2:hexastar3d, 3:hexastar2d,  default is 2")
+	yamlFile             = flag.String("yaml", "map/projection_edit.yaml", "yaml file")
+	timeBeta             = flag.Float64("timebeta", 1.5, "the weight of time scale")
+	timeStepblockLenghth = flag.Int("tsl", 10, "how many timesteps is  a single route occupied")
 
 	gridMap      *grid.GridMap = nil
 	astarPlanner *astar.Astar  //if 2d mode
@@ -58,7 +58,7 @@ var (
 )
 
 func init() {
-	routeCh = make(chan *cav.PathRequest)
+	routeCh = make(chan *cav.PathRequest) // buffer for route request
 
 	flag.Parse()
 	mode = Mode(*modeF)
@@ -77,10 +77,11 @@ const (
 	ASTAR2D     Mode = iota //normal astar
 	ASTAR3D                 //original astar
 	ASTAR3DHEXA             //original hexa astar
+	ASTAR2DHEXA             // normal hexa astar
 )
 
 func (m Mode) String() string {
-	s := [3]string{"Astar2D", "Astar3D", "HexaAstar3d"}
+	s := [4]string{"Astar2D", "Astar3D", "HexaAstar3d", "HexaAstar2d"}
 	return s[m]
 }
 
@@ -93,7 +94,7 @@ func handleRouting() {
 
 func routing(rcd *cav.PathRequest) {
 	var jsonPayload []byte
-	if mode == ASTAR3DHEXA {
+	if mode == ASTAR3DHEXA || mode == ASTAR2DHEXA {
 		if gridMap == nil {
 			log.Print("not receive gridMap yet ...")
 			return
@@ -112,7 +113,7 @@ func routing(rcd *cav.PathRequest) {
 			}
 		}
 
-		// update robot map
+		// update robot time map
 		now := time.Now()
 		elap := now.Sub(timeMapMin).Seconds()
 		updateStep := int(math.Round(elap / timeStep))
@@ -123,7 +124,11 @@ func routing(rcd *cav.PathRequest) {
 
 		//planning
 		log.Printf("start planning robot%d (%f, %f) to (%f, %f)", rcd.RobotId, rcd.Start.X, rcd.Start.Y, rcd.Goal.X, rcd.Goal.Y)
-		routei, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others, *timeBeta)
+		is2d := false
+		if mode == ASTAR2DHEXA {
+			is2d = true
+		}
+		routei, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others, *timeBeta, is2d)
 
 		if err != nil {
 			log.Print(err)
@@ -144,13 +149,12 @@ func routing(rcd *cav.PathRequest) {
 
 			publishPath(path)
 
-			// update costmap
-			gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, aroundCell, *timeStepLoos)
+			// update time costmap
+			gridMap.UpdateTimeObjMapHexa(timeRobotMap, routei, aroundCell, *timeStepblockLenghth)
 			now := time.Now()
 			elap := now.Sub(timeMapMin).Seconds()
 			updateStep := int(math.Round(elap / timeStep))
 			timeRobotMap = gridMap.UpdateStep(timeRobotMap, updateStep)
-			// addTime := time.Duration(int64(float64(updateStep)*timeStep*math.Pow10(6))) * time.Microsecond
 			addTime := time.Duration(int64(float64(updateStep)*timeStep)) * time.Second
 			timeMapMin = timeMapMin.Add(addTime)
 			log.Printf("elaps %fsecond update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
@@ -224,6 +228,7 @@ func publishPath(d *cav.Path) {
 	}
 }
 
+// send ros path message in mqtt
 func sendPath(jsonPayload []byte, id int) {
 	topic := fmt.Sprintf("robot/path/%d", id)
 	mqttProt := proto_mqtt.MQTTRecord{
@@ -310,7 +315,7 @@ func SetupStaticMap() {
 	} else if mode == ASTAR3D {
 		gridMap = grid.NewGridMapReso(*mapMeta, robotRadius, reso, objMap)
 		timeRobotMap = grid.NewTRW(gridMap.MaxT, gridMap.Width, gridMap.Height)
-	} else if mode == ASTAR3DHEXA {
+	} else if mode == ASTAR3DHEXA || mode == ASTAR2DHEXA {
 		gridMap = grid.NewGridMapResoHexa(*mapMeta, robotRadius, reso, objMap)
 		timeRobotMap = grid.NewTRW(gridMap.MaxT, gridMap.Width, gridMap.Height)
 		timeMapMin = time.Now()
@@ -339,7 +344,6 @@ func main() {
 	go handleRouting()
 
 	go subsclibeRouteSupply(synerex.RouteClient)
-	// go subsclibeMqttSupply(synerex.MqttClient)
 
 	wg.Add(1)
 	wg.Wait()

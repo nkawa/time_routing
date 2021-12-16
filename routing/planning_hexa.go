@@ -13,8 +13,8 @@ var (
 )
 
 const (
-	// Mode = 1 //around 6
-	Mode = 2 //around 12
+	// Mode = 1 //search around 6 node
+	Mode = 2 //search around 12 node
 )
 
 // initialize custom resolution
@@ -103,7 +103,7 @@ type logOpt struct {
 	StopCount int
 }
 
-func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, timeStep float64, TRW TimeRobotMap, otherObjects map[Index]bool, timeBeta float64) (route [][3]int, oerr error) {
+func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, timeStep float64, TRW TimeRobotMap, otherObjects map[Index]bool, timeBeta float64, is2d bool) (route [][3]int, oerr error) {
 	startTime := time.Now()
 
 	if m.ObjectMap[newIndex(ga, gb)] {
@@ -200,7 +200,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, timeStep float64, TRW T
 		closeSet[nodeIndex(current)] = current
 		closeSetT[nodeIndexT(current)] = current
 
-		around := current.AroundHexa(&m, minTime, v, timeStep, TRW, otherObjects, timeBeta)
+		around := current.AroundHexa(&m, minTime, v, timeStep, TRW, otherObjects, timeBeta, is2d)
 		for _, an := range around {
 			indT := nodeIndexT(an)
 			ind := nodeIndex(an)
@@ -234,10 +234,10 @@ func (g GridMap) Route2PosHexa(minT time.Time, timeStep float64, route [][3]int)
 	return fTime, fRoute
 }
 
-func (n Node) AroundHexa(g *GridMap, minTime int, v, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool, timeBeta float64) []*Node {
+func (n Node) AroundHexa(g *GridMap, minTime int, v, timeStep float64, TRW TimeRobotMap, otherRobot map[Index]bool, timeBeta float64, is2d bool) []*Node {
 	// [time, x, y, cost]
 	motion := [][4]float64{
-		{1.0, 0.0, 0.0, 0.0},
+		{1.0, 0.0, 0.0, 0.0}, //stop
 		{0.0, 1.0, 0.0, 1.0},
 		{0.0, 1.0, 1.0, 1.0},
 		{0.0, 0.0, 1.0, 1.0},
@@ -260,7 +260,10 @@ func (n Node) AroundHexa(g *GridMap, minTime int, v, timeStep float64, TRW TimeR
 	}
 
 	var around []*Node
-	for _, m := range motion {
+	for i, m := range motion {
+		if is2d && i == 0 {
+			continue
+		}
 		aX := n.XId + int(m[1])
 		aY := n.YId + int(m[2])
 		aT := n.T + int(m[0]) + 1
