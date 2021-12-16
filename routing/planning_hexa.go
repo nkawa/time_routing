@@ -17,92 +17,6 @@ const (
 	Mode = 2 //search around 12 node
 )
 
-// initialize custom resolution
-// using main
-func NewGridMapResoHexa(m MapMeta, robotRadius float64, resolution float64, objMap [][2]float64) *GridMap {
-	start := time.Now()
-	g := new(GridMap)
-	g.MapOrigin = m.Origin
-	g.Resolution = resolution
-
-	worldWidth := float64(m.W) * m.Reso
-	worldHeight := float64(m.H) * m.Reso
-
-	width := int(math.Ceil(worldWidth / (resolution * math.Sqrt(3) / 2)))
-	height := int(math.Ceil(worldHeight/resolution)) + 1
-
-	g.Origin.X = m.Origin.X
-	g.Origin.Y = m.Origin.Y
-
-	g.Width = width
-	g.Height = height
-
-	g.MaxT = MaxTimeLength
-	count := 0
-
-	g.ObjectMap = make(map[Index]bool)
-	for i := 0; i < width; i++ {
-		x := m.Origin.X + float64(i)*resolution*math.Sqrt(3)/2
-		for j := 0; j < height; j++ {
-			var y float64
-			if i%2 == 0 {
-				y = m.Origin.Y + float64(j)*resolution
-			} else {
-				y = m.Origin.Y - m.Reso/2 + float64(j)*resolution
-			}
-			g.ObjectMap[newIndex(i, j)] = false
-			for _, op := range objMap {
-				d := math.Hypot(op[0]-x, op[1]-y)
-				if d <= robotRadius {
-					g.ObjectMap[newIndex(i, j)] = true
-					count += 1
-					break
-				}
-			}
-		}
-	}
-
-	elaps := time.Since(start).Seconds()
-	log.Printf("loading gridmap resolution: %f, takes: %f seconds, obj %d counts, width: %d, height: %d, origin %f,%f", resolution, elaps, count, g.Width, g.Height, g.Origin.X, g.Origin.Y)
-	return g
-}
-
-func (g *GridMap) Pos2IndHexa(x, y float64) (int, int) {
-	if x < g.MapOrigin.X || y < g.MapOrigin.Y {
-		return 0, 0
-	}
-	aid := int(math.Round((x - g.Origin.X) / (g.Resolution * math.Sqrt(3) / 2)))
-	var bid int
-	if aid%2 == 0 {
-		bid = int(math.Round((y - g.Origin.Y) / g.Resolution))
-	} else {
-		bid = int(math.Round((y - g.Origin.Y - g.Resolution/2) / g.Resolution))
-	}
-	return aid, bid
-}
-
-func (g *GridMap) Ind2PosHexa(a, b int) (float64, float64) {
-	if a < 0 || b < 0 {
-		return 0, 0
-	}
-	x := g.Origin.X + (g.Resolution*math.Sqrt(3)/2)*float64(a)
-	var y float64
-	if a%2 == 0 {
-		y = g.Origin.Y + g.Resolution*float64(b)
-	} else {
-		y = g.Origin.Y - g.Resolution/2 + g.Resolution*float64(b)
-	}
-	return x, y
-}
-
-type logOpt struct {
-	X         int
-	Y         int
-	T         int
-	Cost      float64
-	StopCount int
-}
-
 func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, timeStep float64, TRW TimeRobotMap, otherObjects map[Index]bool, timeBeta float64, is2d bool) (route [][3]int, oerr error) {
 	startTime := time.Now()
 
@@ -302,11 +216,6 @@ func (n Node) AroundHexa(g *GridMap, minTime int, v, timeStep float64, TRW TimeR
 
 		node := n.NewNode(aT, aX, aY, n.G+m[3], n.S+timeBeta*m[0])
 
-		// MaxStopCount以上止まりすぎはだめ
-		// if node.S > MaxS {
-		// 	continue
-		// }
-
 		around = append(around, node)
 	}
 	return around
@@ -318,11 +227,5 @@ func (g GridMap) heuristicHexa(n1, n2 *Node) float64 {
 	x1, y1 := g.Ind2PosHexa(n1.XId, n1.YId)
 	x2, y2 := g.Ind2PosHexa(n2.XId, n2.YId)
 	d := w * math.Hypot(x1-x2, y1-y2)
-	return d
-}
-
-func sumHexa(n1, n2 *Node) float64 {
-	w := 1.0
-	d := w*math.Abs(float64(n1.XId)-float64(n2.XId)) + math.Abs(float64(n1.YId)-float64(n2.YId))
 	return d
 }

@@ -12,7 +12,6 @@ import (
 	"path"
 	"time"
 
-	ros "github.com/fukurin00/go_ros_msg"
 	_ "github.com/jbuchbinder/gopnm"
 )
 
@@ -26,16 +25,6 @@ type MapMeta struct {
 	Origin Point
 	Reso   float64
 	Data   []int8
-}
-
-func LoadROSMap(grid ros.OccupancyGrid, closeThreth int) *MapMeta {
-	m := new(MapMeta)
-	m.H = int(grid.Info.Height)
-	m.W = int(grid.Info.Width)
-	m.Origin = Point{X: grid.Info.Origin.Position.X, Y: grid.Info.Origin.Position.Y}
-	m.Reso = float64(grid.Info.Resolution)
-	m.Data = grid.Data
-	return m
 }
 
 // read image file of ROS format

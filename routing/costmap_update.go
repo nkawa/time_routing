@@ -97,37 +97,3 @@ func (g GridMap) UpdateTimeObjMapHexa(TW TimeRobotMap, route [][3]int, aroundCel
 		}
 	}
 }
-
-// func (g GridMap) UpdateTimeRobotMap(route [][3]int, robotRadius float64, TRW TimeRobotMap) {
-// 	around8 := [8][2]int{{-1, 0}, {0, 1}, {1, 0}, {0, -1}, {-1, -1}, {-1, 1}, {1, 1}, {1, -1}}
-// 	around4 := [4][2]int{{-1, 0}, {0, 1}, {1, 0}, {0, -1}}
-
-// 	for i := 0; i < len(route); i++ {
-// 		it := route[i][0]
-// 		ix := route[i][1]
-// 		iy := route[i][2]
-// 		TRW[it][iy][ix] = true
-// 		if robotRadius < g.Resolution {
-// 			continue
-// 		} else if robotRadius <= math.Sqrt(2)*g.Resolution {
-// 			for _, v := range around4 {
-// 				ny := iy + v[1]
-// 				nx := ix + v[0]
-// 				if ny < 0 || nx < 0 || nx >= g.Width || ny >= g.Height {
-// 					continue
-// 				}
-// 				TRW[it][ny][nx] = true
-// 			}
-// 		} else {
-// 			for _, v := range around8 {
-// 				ny := iy + v[1]
-// 				nx := ix + v[0]
-// 				if ny < 0 || nx < 0 || nx >= g.Width || ny >= g.Height {
-// 					continue
-// 				}
-// 				TRW[it][ny][nx] = true
-// 			}
-// 		}
-
-// 	}
-// }

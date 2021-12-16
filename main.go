@@ -40,13 +40,14 @@ var (
 	modeF                = flag.Int("mode", 2, "planning mode: 0:astar2d, 1:astar3d, 2:hexastar3d, 3:hexastar2d,  default is 2")
 	yamlFile             = flag.String("yaml", "map/projection_edit.yaml", "yaml file")
 	timeBeta             = flag.Float64("timebeta", 1.5, "the weight of time scale")
-	timeStepblockLenghth = flag.Int("tsl", 10, "how many timesteps is  a single route occupied")
+	timeStepblockLenghth = flag.Int("tsl", 10, "how many timesteps does a single route occupy")
+	maxTimeLenghth       = flag.Int("mtl", 100000, "how many timesteps dose costmap extend to time scale")
 
 	gridMap      *grid.GridMap = nil
 	astarPlanner *astar.Astar  //if 2d mode
 
-	timeRobotMap grid.TimeRobotMap = nil // ロボットがいるかどうかのマップ
-	timeMapMin   time.Time               //time mapの最小時刻
+	timeRobotMap grid.TimeRobotMap = nil // 時間ごとのロボットがいるかどうかのマップ
+	timeMapMin   time.Time               //time mapの最後にアップデートあれた時刻
 
 	routeCh chan *cav.PathRequest
 
@@ -69,6 +70,8 @@ func init() {
 	timeStep = reso / robotVelocity
 
 	aroundCell = grid.GetAoundCell(robotRadius, reso)
+
+	grid.MaxTimeLength = *maxTimeLenghth
 }
 
 type Mode int

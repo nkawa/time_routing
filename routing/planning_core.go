@@ -8,6 +8,18 @@ import (
 	"time"
 )
 
+type Node struct {
+	T   int `json:"t"` //time
+	XId int `json:"x"`
+	YId int `json:"y"`
+
+	G float64 `json:"g"` // step cost
+	F float64 `json:"f"` // cost
+	S float64 `json:"s"` // stop cost
+
+	Parent *Node
+}
+
 type Index int64
 
 const HASH int64 = 100000
@@ -159,18 +171,6 @@ func (g GridMap) Route2Pos(minT float64, route [][3]int) [][3]float64 {
 		fRoute[i] = p
 	}
 	return fRoute
-}
-
-type Node struct {
-	T   int `json:"t"` //time
-	XId int `json:"x"`
-	YId int `json:"y"`
-
-	G float64 `json:"g"` // step cost
-	F float64 `json:"f"` // cost
-	S float64 `json:"s"` // stop cost
-
-	Parent *Node
 }
 
 func (p *Node) NewNode(t, x, y int, g, s float64) *Node {
