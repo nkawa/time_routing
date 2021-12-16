@@ -122,6 +122,7 @@ func routing(rcd *cav.PathRequest) {
 		log.Printf("elaps %fseconds update robot cost map %dtimestep, %f added", elap, updateStep, addTime.Seconds())
 
 		//planning
+		log.Printf("start planning robot%d (%f, %f) to (%f, %f)", rcd.RobotId, rcd.Start.X, rcd.Start.Y, rcd.Goal.X, rcd.Goal.Y)
 		routei, err := gridMap.PlanHexa(int(rcd.RobotId), isa, isb, iga, igb, robotVelocity, timeStep, grid.TRWCopy(timeRobotMap), others, *timeBeta)
 
 		if err != nil {

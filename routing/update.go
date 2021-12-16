@@ -3,25 +3,24 @@ package routing
 import "math"
 
 var (
-	Around     = [][2]int{{-1, 0}, {0, -1}, {1, -1}, {1, 0}, {0, 1}, {-1, 1}}
-	AroundMore = [][2]int{{2, -1}, {1, -2}, {-1, -1}, {-2, 1}, {2, -1}, {1, 1}}
-	Around2    = [][2]int{{-2, 0}, {0, -2}, {2, -2}, {2, 0}, {0, 2}, {-2, 2}}
-	Arrond3    = [][2]int{{-3, 0}, {0, -3}, {3, -3}, {3, 0}, {0, 3}, {-3, 3}, {2, 1}, {1, 2}, {3, -1}, {3, -2}, {2, -3}, {1, -3}, {-1, -2}, {-2, -1}, {-3, 1}, {-3, 2}, {-2, 3}, {-1, 3}}
+	Around  = [][2]int{{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {0, -1}}
+	Around2 = [][2]int{{2, 0}, {1, 2}, {-1, 2}, {-2, 0}, {-1, -1}, {1, -1}}
+	Around3 = [][2]int{{2, 1}, {0, 2}, {-2, 1}, {-2, -1}, {0, -2}, {2, -1}}
+	Around4 = [][2]int{{3, 0}, {3, 1}, {2, 2}, {1, 3}, {-1, 3}, {-2, 2}, {-3, 1}, {-3, 0}, {-2, -2}, {-1, -2}, {1, -2}, {2, -2}}
+	Around5 = [][2]int{{3, 2}, {0, 3}, {-3, 2}, {-3, -1}, {0, -3}, {3, -2}}
 )
 
 func GetAoundCell(r, l float64) int {
 	// r: robotRadius
 	// l: resolution
-	if 2*1.1*r <= l/2 {
+	if r <= l/2 {
+		return 0
+	} else if r <= 2/math.Sqrt(3)*l {
 		return 1
-	} else if 2*1.1*r <= 2/math.Sqrt(3)*l {
-		return 2
 	} else if 2*1.1*r <= 4/math.Sqrt(3)*l {
-		return 3
+		return 2
 	}
-	//return 4
-
-	return int(math.Ceil(math.Sqrt(3) * 1.1 * r / l))
+	return 3
 }
 
 func (g GridMap) UpdateStep(TW TimeRobotMap, step int) TimeRobotMap {
@@ -73,18 +72,19 @@ func (g GridMap) UpdateTimeObjMapHexa(TW TimeRobotMap, route [][3]int, aroundCel
 			iy = route[i][2]
 			//center
 			TW[newIndexT(it, ix, iy)] = true
-			//around
-			if aroundCell == 2 {
+
+			if aroundCell == 1 {
 				ar = append(ar, Around...)
-			} else if aroundCell == 3 {
-				ar = append(ar, Around...)
-				ar = append(ar, Around2...)
-				ar = append(ar, AroundMore...)
-			} else {
+			} else if aroundCell == 2 {
 				ar = append(ar, Around...)
 				ar = append(ar, Around2...)
-				ar = append(ar, AroundMore...)
-				ar = append(ar, Arrond3...)
+				ar = append(ar, Around3...)
+			} else if aroundCell > 3 {
+				ar = append(ar, Around...)
+				ar = append(ar, Around2...)
+				ar = append(ar, Around3...)
+				ar = append(ar, Around4...)
+				ar = append(ar, Around5...)
 			}
 			for _, v := range ar {
 				ny := iy + v[1]

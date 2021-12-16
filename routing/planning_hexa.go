@@ -25,32 +25,31 @@ func NewGridMapResoHexa(m MapMeta, robotRadius float64, resolution float64, objM
 	g.MapOrigin = m.Origin
 	g.Resolution = resolution
 
-	var aList []float64
-	var bList []float64
+	worldWidth := float64(m.W) * m.Reso
+	worldHeight := float64(m.H) * m.Reso
 
-	for _, obj := range objMap {
-		aList = append(aList, getA(obj[0], obj[1]))
-		bList = append(bList, getB(obj[0], obj[1]))
-	}
+	width := int(math.Ceil(worldWidth / (resolution * math.Sqrt(3) / 2)))
+	height := int(math.Ceil(worldHeight/resolution)) + 1
 
-	maxX := MaxFloat(aList)
-	maxY := MaxFloat(bList)
-	g.Origin.X = MinFloat(aList)
-	g.Origin.Y = MinFloat(bList)
+	g.Origin.X = m.Origin.X
+	g.Origin.Y = m.Origin.Y
 
-	g.Width = int(math.Round((maxX - g.Origin.X) / resolution))
-	g.Height = int(math.Round((maxY - g.Origin.Y) / resolution))
+	g.Width = width
+	g.Height = height
 
 	g.MaxT = MaxTimeLength
-	g.ObjectMap = make(map[Index]bool, g.Height)
-
 	count := 0
-	for j := 0; j < g.Height; j++ {
-		b := g.Origin.Y + float64(j)*g.Resolution
-		for i := 0; i < g.Width; i++ {
-			a := g.Origin.X + float64(i)*g.Resolution
-			x := getXAB(a, b)
-			y := getYAB(a, b)
+
+	g.ObjectMap = make(map[Index]bool)
+	for i := 0; i < width; i++ {
+		x := m.Origin.X + float64(i)*resolution*math.Sqrt(3)/2
+		for j := 0; j < height; j++ {
+			var y float64
+			if i%2 == 0 {
+				y = m.Origin.Y + float64(j)*resolution
+			} else {
+				y = m.Origin.Y - m.Reso/2 + float64(j)*resolution
+			}
 			g.ObjectMap[newIndex(i, j)] = false
 			for _, op := range objMap {
 				d := math.Hypot(op[0]-x, op[1]-y)
@@ -68,40 +67,32 @@ func NewGridMapResoHexa(m MapMeta, robotRadius float64, resolution float64, objM
 	return g
 }
 
-func getA(x, y float64) float64 {
-	return x/math.Sqrt(3) + y
-}
-
-func getB(x, y float64) float64 {
-	return x/math.Sqrt(3) - y
-}
-
-func A(x, y float64) float64 {
-	return x/math.Sqrt(3) + y
-}
-
-func B(x, y float64) float64 {
-	return x/math.Sqrt(3) - y
-}
-
-func getXAB(a, b float64) float64 {
-	return math.Sqrt(3)/2*a + math.Sqrt(3)/2*b
-}
-
-func getYAB(a, b float64) float64 {
-	return a/2 - b/2
-}
-
 func (g *GridMap) Pos2IndHexa(x, y float64) (int, int) {
-	a := getA(x, y)
-	b := getB(x, y)
-	if a < g.MapOrigin.X || b < g.MapOrigin.Y {
-		log.Printf("position (%f,%f) is out of map", x, y)
+	if x < g.MapOrigin.X || y < g.MapOrigin.Y {
 		return 0, 0
 	}
-	aid := int(math.Round((a - g.Origin.X) / g.Resolution))
-	bid := int(math.Round((b - g.Origin.Y) / g.Resolution))
+	aid := int(math.Round((x - g.Origin.X) / (g.Resolution * math.Sqrt(3) / 2)))
+	var bid int
+	if aid%2 == 0 {
+		bid = int(math.Round((y - g.Origin.Y) / g.Resolution))
+	} else {
+		bid = int(math.Round((y - g.Origin.Y - g.Resolution/2) / g.Resolution))
+	}
 	return aid, bid
+}
+
+func (g *GridMap) Ind2PosHexa(a, b int) (float64, float64) {
+	if a < 0 || b < 0 {
+		return 0, 0
+	}
+	x := g.Origin.X + (g.Resolution*math.Sqrt(3)/2)*float64(a)
+	var y float64
+	if a%2 == 0 {
+		y = g.Origin.Y + g.Resolution*float64(b)
+	} else {
+		y = g.Origin.Y - g.Resolution/2 + g.Resolution*float64(b)
+	}
+	return x, y
 }
 
 type logOpt struct {
@@ -114,20 +105,6 @@ type logOpt struct {
 
 func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, timeStep float64, TRW TimeRobotMap, otherObjects map[Index]bool, timeBeta float64) (route [][3]int, oerr error) {
 	startTime := time.Now()
-	//var logData []logOpt
-
-	saw := m.MapOrigin.X + float64(sa)*m.Resolution
-	sbw := m.MapOrigin.Y + float64(sb)*m.Resolution
-	gaw := m.MapOrigin.X + float64(ga)*m.Resolution
-	gbw := m.MapOrigin.Y + float64(gb)*m.Resolution
-
-	log.Printf("start planning robot%d (%f, %f) to (%f, %f)",
-		id,
-		getXAB(saw, sbw),
-		getYAB(saw, sbw),
-		getXAB(gaw, gbw),
-		getYAB(gaw, gbw),
-	)
 
 	if m.ObjectMap[newIndex(ga, gb)] {
 		oerr = fmt.Errorf("robot%d path planning error: goal is not verified", id)
@@ -184,7 +161,7 @@ func (m GridMap) PlanHexa(id int, sa, sb, ga, gb int, v, timeStep float64, TRW T
 		minTime = 999999999999999999
 		var minKey IndexT
 		for key, val := range openSetT {
-			calCost := val.G + val.S + heuristicHexa(goal, val) // length to goal
+			calCost := val.G + val.S + m.heuristicHexa(goal, val) // length to goal
 			if calCost < minCost {
 				minCost = calCost
 				minKey = key
@@ -248,9 +225,7 @@ func (g GridMap) Route2PosHexa(minT time.Time, timeStep float64, route [][3]int)
 	fTime := make([]time.Time, l)
 
 	for i, r := range route {
-		a, b := g.Ind2Pos(r[1], r[2])
-		x := getXAB(a, b)
-		y := getYAB(a, b)
+		x, y := g.Ind2PosHexa(r[1], r[2])
 		t := minT.Add(time.Duration(float64(r[0])*timeStep) * time.Second)
 		p := [2]float64{x, y}
 		fRoute[i] = p
@@ -264,33 +239,31 @@ func (n Node) AroundHexa(g *GridMap, minTime int, v, timeStep float64, TRW TimeR
 	motion := [][4]float64{
 		{1.0, 0.0, 0.0, 0.0},
 		{0.0, 1.0, 0.0, 1.0},
+		{0.0, 1.0, 1.0, 1.0},
 		{0.0, 0.0, 1.0, 1.0},
 		{0.0, -1.0, 1.0, 1.0},
 		{0.0, -1.0, 0.0, 1.0},
 		{0.0, 0.0, -1.0, 1.0},
-		{0.0, 1.0, -1.0, 1.0},
 	}
 	if Mode == 2 {
+		r3 := math.Sqrt(3)
 		motion2 := [][4]float64{
 			//1個奥
-			{0.0, 1.0, 1.0, 2.0},
-			{0.0, 2.0, -1.0, 2.0},
-			{0.0, -1.0, -1.0, 2.0},
-			{0.0, -2.0, 1.0, 2.0},
-			{0.0, 1.0, -2.0, 2.0},
-			{0.0, -1.0, 2.0, 2.0},
+			{1.0, 2.0, 0.0, r3},
+			{1.0, 1.0, 2.0, r3},
+			{1.0, -1.0, 2.0, r3},
+			{1.0, -2.0, 0.0, r3},
+			{1.0, -1.0, -1.0, r3},
+			{1.0, 1.0, -1.0, r3},
 		}
 		motion = append(motion, motion2...)
 	}
 
 	var around []*Node
-	for i, m := range motion {
+	for _, m := range motion {
 		aX := n.XId + int(m[1])
 		aY := n.YId + int(m[2])
-		aT := n.T + 1
-		if i >= 7 {
-			aT += 1
-		}
+		aT := n.T + int(m[0]) + 1
 
 		//時間コストマップ外の時間は外す
 		if aT >= g.MaxT {
@@ -336,18 +309,11 @@ func (n Node) AroundHexa(g *GridMap, minTime int, v, timeStep float64, TRW TimeR
 	return around
 }
 
-func heuristicHexa(n1, n2 *Node) float64 {
+func (g GridMap) heuristicHexa(n1, n2 *Node) float64 {
 	w := 1.0
-	// x1 := getXAB(float64(n1.XId), float64(n1.YId))
-	// y1 := getYAB(float64(n1.XId), float64(n1.YId))
-	// x2 := getXAB(float64(n2.XId), float64(n2.YId))
-	// y2 := getYAB(float64(n2.XId), float64(n2.YId))
-	// d := w * math.Hypot(x1-x2, y1-y2)
 
-	x1 := getXAB(float64(n1.XId), float64(n1.YId))
-	y1 := getYAB(float64(n1.XId), float64(n1.YId))
-	x2 := getXAB(float64(n2.XId), float64(n2.YId))
-	y2 := getYAB(float64(n2.XId), float64(n2.YId))
+	x1, y1 := g.Ind2PosHexa(n1.XId, n1.YId)
+	x2, y2 := g.Ind2PosHexa(n2.XId, n2.YId)
 	d := w * math.Hypot(x1-x2, y1-y2)
 	return d
 }
